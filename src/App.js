@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import CryptoCard from './components/CryptoCard';
 import StatusIndicator from './components/StatusIndicator';
+import MarketTrendSummary from './components/MarketTrendSummary';
+import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
 
 function App() {
@@ -11,8 +13,40 @@ function App() {
   const [statusText, setStatusText] = useState('Loading...');
   const [lastUpdated, setLastUpdated] = useState(null);
   const [error, setError] = useState(null);
+  const [abortController, setAbortController] = useState(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  const apiUrl = 'https://data-api.coindesk.com/spot/v1/latest/tick?market=coinbase&instruments=BTC-USD,ETH-USD,BNB-USD&apply_mapping=true&api_key=b25261954a90a07e2ba14216f21bb9d9cc354182be6298904478f0d283095551';
+  // Constants for magic numbers
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://data-api.coindesk.com/spot/v1/latest/tick';
+  const API_KEY = process.env.REACT_APP_COINDESK_API_KEY;
+  const POLLING_INTERVAL = 10000; // 10 seconds
+  const FIVE_MINUTES_MS = 300000; // 5 minutes in milliseconds
+  const INSTRUMENTS = 'BTC-USD,ETH-USD,BNB-USD';
+
+  const apiUrl = `${API_BASE_URL}?market=coinbase&instruments=${INSTRUMENTS}&apply_mapping=true&api_key=${API_KEY}`;
+
+  // Network status detection
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      setStatusText('Connection restored');
+      fetchCryptoData();
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      setStatus('error');
+      setStatusText('Offline');
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const handlePriceUpdate = useCallback((symbol, price) => {
     setPreviousPrices(prev => ({
@@ -22,12 +56,27 @@ function App() {
   }, []);
 
   const fetchCryptoData = async () => {
+    // Check if offline
+    if (!isOnline) {
+      setStatus('error');
+      setStatusText('Offline');
+      return;
+    }
+
+    // Cancel previous request if still pending
+    if (abortController) {
+      abortController.abort();
+    }
+
+    const controller = new AbortController();
+    setAbortController(controller);
+
     try {
       setStatus('loading');
       setStatusText('Fetching data...');
       setError(null);
 
-      const response = await fetch(apiUrl);
+      const response = await fetch(apiUrl, { signal: controller.signal });
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -35,40 +84,57 @@ function App() {
       
       const data = await response.json();
       
+      // Validate data structure
       if (!data.Data || typeof data.Data !== 'object') {
         throw new Error('Invalid data format received from API');
       }
 
       // Convert the Data object to an array for mapping
       const cryptoArray = Object.values(data.Data);
-      setCryptoData(cryptoArray);
       
-      // Update 5-minute price history
+      // Validate each crypto object
+      const validatedCryptoArray = cryptoArray.filter(crypto => 
+        crypto && 
+        typeof crypto === 'object' && 
+        crypto.BASE && 
+        crypto.PRICE && 
+        !isNaN(parseFloat(crypto.PRICE))
+      );
+
+      if (validatedCryptoArray.length === 0) {
+        throw new Error('No valid cryptocurrency data received');
+      }
+
       const currentTime = Date.now();
-      cryptoArray.forEach(crypto => {
-        const symbol = crypto.BASE;
-        const currentPrice = parseFloat(crypto.PRICE);
+      
+      // Single state update to prevent race conditions
+      setCryptoData(validatedCryptoArray);
+      
+      // Update price history and previous prices in a single batch
+      setFiveMinutePrices(prev => {
+        const newHistory = { ...prev };
+        const newPreviousPrices = {};
         
-        // Store current price with timestamp
-        setFiveMinutePrices(prev => {
+        validatedCryptoArray.forEach(crypto => {
+          const symbol = crypto.BASE;
+          const currentPrice = parseFloat(crypto.PRICE);
+          
+          // Update 5-minute price history
           const history = prev[symbol] || [];
-          const newHistory = [...history, { price: currentPrice, timestamp: currentTime }];
+          const newHistoryForSymbol = [...history, { price: currentPrice, timestamp: currentTime }];
           
-          // Keep only last 5 minutes of data (300,000 ms)
-          const fiveMinutesAgo = currentTime - 300000;
-          const filteredHistory = newHistory.filter(entry => entry.timestamp > fiveMinutesAgo);
+          // Keep only last 5 minutes of data
+          const fiveMinutesAgo = currentTime - FIVE_MINUTES_MS;
+          const filteredHistory = newHistoryForSymbol.filter(entry => entry.timestamp > fiveMinutesAgo);
           
-          return {
-            ...prev,
-            [symbol]: filteredHistory
-          };
+          newHistory[symbol] = filteredHistory;
+          newPreviousPrices[symbol] = currentPrice;
         });
         
-        // Update previous price for instant change detection
-        setPreviousPrices(prev => ({
-          ...prev,
-          [symbol]: currentPrice
-        }));
+        // Update previous prices separately to avoid complex state updates
+        setPreviousPrices(newPreviousPrices);
+        
+        return newHistory;
       });
       
       setStatus('connected');
@@ -76,10 +142,15 @@ function App() {
       setLastUpdated(new Date());
       
     } catch (error) {
-      console.error('Error fetching crypto data:', error);
-      setStatus('error');
-      setStatusText('Connection failed');
-      setError('Failed to fetch cryptocurrency data. Please check your connection and try again.');
+      // Don't show error for aborted requests
+      if (error.name !== 'AbortError') {
+        console.error('Error fetching crypto data:', error);
+        setStatus('error');
+        setStatusText(isOnline ? 'Connection failed' : 'Offline');
+        setError('Failed to fetch cryptocurrency data. Please check your connection and try again.');
+      }
+    } finally {
+      setAbortController(null);
     }
   };
 
@@ -88,10 +159,16 @@ function App() {
     
     const interval = setInterval(() => {
       fetchCryptoData();
-    }, 5000); // 5 seconds
+    }, POLLING_INTERVAL);
 
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      clearInterval(interval);
+      // Cancel any pending request on cleanup
+      if (abortController) {
+        abortController.abort();
+      }
+    };
+  }, [POLLING_INTERVAL]);
 
   const getCryptoFullName = (symbol) => {
     const names = {
@@ -111,33 +188,38 @@ function App() {
         </header>
         
         <main>
-          <StatusIndicator 
-            status={status} 
-            statusText={statusText} 
-          />
-          
-          {error ? (
-            <div className="error-message">
-              <p>{error}</p>
+          <ErrorBoundary>
+            <StatusIndicator 
+              status={status} 
+              statusText={statusText} 
+            />
+            
+            <MarketTrendSummary cryptoData={cryptoData} />
+            
+            {error ? (
+              <div className="error-message">
+                <p>{error}</p>
+              </div>
+            ) : (
+              <div className="crypto-grid">
+                {cryptoData.map((crypto, index) => (
+                  <ErrorBoundary key={crypto.BASE || index}>
+                    <CryptoCard
+                      crypto={crypto}
+                      previousPrice={previousPrices[crypto.BASE]}
+                      fiveMinuteHistory={fiveMinutePrices[crypto.BASE]}
+                      onPriceUpdate={handlePriceUpdate}
+                      getCryptoFullName={getCryptoFullName}
+                    />
+                  </ErrorBoundary>
+                ))}
+              </div>
+            )}
+            
+            <div className="last-updated">
+              Last updated: {lastUpdated ? lastUpdated.toLocaleTimeString() : 'Never'}
             </div>
-          ) : (
-            <div className="crypto-grid">
-              {cryptoData.map((crypto, index) => (
-                <CryptoCard
-                  key={crypto.BASE || index}
-                  crypto={crypto}
-                  previousPrice={previousPrices[crypto.BASE]}
-                  fiveMinuteHistory={fiveMinutePrices[crypto.BASE]}
-                  onPriceUpdate={handlePriceUpdate}
-                  getCryptoFullName={getCryptoFullName}
-                />
-              ))}
-            </div>
-          )}
-          
-          <div className="last-updated">
-            Last updated: {lastUpdated ? lastUpdated.toLocaleTimeString() : 'Never'}
-          </div>
+          </ErrorBoundary>
         </main>
       </div>
     </div>
