@@ -111,31 +111,28 @@ function App() {
       setCryptoData(validatedCryptoArray);
       
       // Update price history and previous prices in a single batch
-      setFiveMinutePrices(prev => {
-        const newHistory = { ...prev };
-        const newPreviousPrices = {};
+      const newHistory = { ...fiveMinutePrices };
+      const newPreviousPrices = {};
+      
+      validatedCryptoArray.forEach(crypto => {
+        const symbol = crypto.BASE;
+        const currentPrice = parseFloat(crypto.PRICE);
         
-        validatedCryptoArray.forEach(crypto => {
-          const symbol = crypto.BASE;
-          const currentPrice = parseFloat(crypto.PRICE);
-          
-          // Update 5-minute price history
-          const history = prev[symbol] || [];
-          const newHistoryForSymbol = [...history, { price: currentPrice, timestamp: currentTime }];
-          
-          // Keep only last 5 minutes of data
-          const fiveMinutesAgo = currentTime - FIVE_MINUTES_MS;
-          const filteredHistory = newHistoryForSymbol.filter(entry => entry.timestamp > fiveMinutesAgo);
-          
-          newHistory[symbol] = filteredHistory;
-          newPreviousPrices[symbol] = currentPrice;
-        });
+        // Update 5-minute price history
+        const history = fiveMinutePrices[symbol] || [];
+        const newHistoryForSymbol = [...history, { price: currentPrice, timestamp: currentTime }];
         
-        // Update previous prices separately to avoid complex state updates
-        setPreviousPrices(newPreviousPrices);
+        // Keep only last 5 minutes of data
+        const fiveMinutesAgo = currentTime - FIVE_MINUTES_MS;
+        const filteredHistory = newHistoryForSymbol.filter(entry => entry.timestamp > fiveMinutesAgo);
         
-        return newHistory;
+        newHistory[symbol] = filteredHistory;
+        newPreviousPrices[symbol] = currentPrice;
       });
+      
+      // Update both states separately to prevent infinite loop
+      setFiveMinutePrices(newHistory);
+      setPreviousPrices(newPreviousPrices);
       
       setStatus('connected');
       setStatusText('Connected');
