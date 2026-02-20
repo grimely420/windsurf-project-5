@@ -55,7 +55,7 @@ function App() {
     }));
   }, []);
 
-  const fetchCryptoData = async () => {
+  const fetchCryptoData = useCallback(async () => {
     // Check if offline
     if (!isOnline) {
       setStatus('error');
@@ -152,7 +152,7 @@ function App() {
     } finally {
       setAbortController(null);
     }
-  };
+  }, [isOnline, abortController, apiUrl, FIVE_MINUTES_MS]);
 
   useEffect(() => {
     fetchCryptoData();
@@ -168,7 +168,7 @@ function App() {
         abortController.abort();
       }
     };
-  }, [POLLING_INTERVAL]);
+  }, [fetchCryptoData, POLLING_INTERVAL]);
 
   const getCryptoFullName = (symbol) => {
     const names = {
@@ -194,7 +194,11 @@ function App() {
               statusText={statusText} 
             />
             
-            <MarketTrendSummary cryptoData={cryptoData} />
+            <MarketTrendSummary 
+  cryptoData={cryptoData} 
+  status={status}
+  statusText={statusText}
+/>
             
             {error ? (
               <div className="error-message">

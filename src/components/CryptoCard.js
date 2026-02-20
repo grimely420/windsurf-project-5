@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import PropTypes from 'prop-types';
 import SparklineChart from './SparklineChart';
 
 const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, onPriceUpdate, getCryptoFullName }) => {
@@ -6,13 +7,45 @@ const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, onPriceUpdate, g
   const [fiveMinuteChange, setFiveMinuteChange] = useState(null);
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipContent, setTooltipContent] = useState('');
+  const tooltipTimeoutRef = useRef(null);
   
-  const symbol = crypto.BASE || 'UNKNOWN';
-  const fullName = getCryptoFullName(symbol);
-  const currentPrice = parseFloat(crypto.PRICE || 0);
+  // Memoize expensive calculations
+  const symbol = useMemo(() => crypto.BASE || 'UNKNOWN', [crypto.BASE]);
+  const fullName = useMemo(() => getCryptoFullName(symbol), [symbol, getCryptoFullName]);
+  const currentPrice = useMemo(() => parseFloat(crypto.PRICE || 0), [crypto.PRICE]);
+  
+  // Memoize formatting functions
+  const formatPrice = useCallback((price) => {
+    if (price >= 1000) {
+      return `$${price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    } else if (price >= 1) {
+      return `$${price.toFixed(2)}`;
+    } else {
+      return `$${price.toFixed(4)}`;
+    }
+  }, []);
+
+  const formatVolume = useCallback((volume) => {
+    if (volume >= 1000000000) {
+      return `$${(volume / 1000000000).toFixed(2)}B`;
+    } else if (volume >= 1000000) {
+      return `$${(volume / 1000000).toFixed(2)}M`;
+    } else if (volume >= 1000) {
+      return `$${(volume / 1000).toFixed(2)}K`;
+    } else {
+      return `$${volume.toFixed(2)}`;
+    }
+  }, []);
+
+  // Memoize sorted history for 5-minute change calculation
+  const sortedHistory = useMemo(() => {
+    if (!fiveMinuteHistory || fiveMinuteHistory.length <= 1) return null;
+    return [...fiveMinuteHistory].sort((a, b) => a.timestamp - b.timestamp);
+  }, [fiveMinuteHistory]);
 
   // Handle instant price change
   useEffect(() => {
+    // First, try to use instant price change
     if (previousPrice && previousPrice !== currentPrice && previousPrice !== 0) {
       const change = ((currentPrice - previousPrice) / previousPrice) * 100;
       const isPositive = change >= 0;
@@ -23,7 +56,21 @@ const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, onPriceUpdate, g
         text: `${isPositive ? '+' : ''}${change.toFixed(2)}%`,
         value: change
       });
-    } else if (!priceChange) {
+    } 
+    // Fallback to 24-hour change if no instant change available
+    else if (!priceChange && crypto.MOVING_24_HOUR_CHANGE_PERCENTAGE) {
+      const change24h = parseFloat(crypto.MOVING_24_HOUR_CHANGE_PERCENTAGE) || 0;
+      const isPositive = change24h >= 0;
+      
+      setPriceChange({
+        class: isPositive ? 'positive' : 'negative',
+        icon: isPositive ? '▲' : '▼',
+        text: `${isPositive ? '+' : ''}${change24h.toFixed(2)}%`,
+        value: change24h
+      });
+    } 
+    // Default to neutral only if no data at all
+    else if (!priceChange && !crypto.MOVING_24_HOUR_CHANGE_PERCENTAGE) {
       setPriceChange({
         class: 'neutral',
         icon: '●',
@@ -31,13 +78,11 @@ const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, onPriceUpdate, g
         value: 0
       });
     }
-  }, [currentPrice, previousPrice]);
+  }, [currentPrice, previousPrice, crypto.MOVING_24_HOUR_CHANGE_PERCENTAGE]);
 
   // Handle 5-minute change
   useEffect(() => {
-    if (fiveMinuteHistory && fiveMinuteHistory.length > 1) {
-      // Find the oldest price (sort by timestamp to be safe)
-      const sortedHistory = [...fiveMinuteHistory].sort((a, b) => a.timestamp - b.timestamp);
+    if (sortedHistory && sortedHistory.length > 1) {
       const oldestPrice = sortedHistory[0].price;
       
       if (oldestPrice !== 0) {
@@ -59,40 +104,36 @@ const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, onPriceUpdate, g
         value: 0
       });
     }
-  }, [currentPrice, fiveMinuteHistory]);
+  }, [currentPrice, sortedHistory, fiveMinuteChange]);
 
   // Update parent with current price
   useEffect(() => {
     onPriceUpdate(symbol, currentPrice);
   }, [currentPrice, symbol, onPriceUpdate]);
 
-  const formatPrice = (price) => {
-    if (price >= 1000) {
-      return `$${price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    } else if (price >= 1) {
-      return `$${price.toFixed(2)}`;
-    } else {
-      return `$${price.toFixed(4)}`;
+  const handleTooltip = useCallback((content) => {
+    // Clear existing timeout
+    if (tooltipTimeoutRef.current) {
+      clearTimeout(tooltipTimeoutRef.current);
     }
-  };
-
-  const formatVolume = (volume) => {
-    if (volume >= 1000000000) {
-      return `$${(volume / 1000000000).toFixed(2)}B`;
-    } else if (volume >= 1000000) {
-      return `$${(volume / 1000000).toFixed(2)}M`;
-    } else if (volume >= 1000) {
-      return `$${(volume / 1000).toFixed(2)}K`;
-    } else {
-      return `$${volume.toFixed(2)}`;
-    }
-  };
-
-  const handleTooltip = (content) => {
+    
     setTooltipContent(content);
     setShowTooltip(true);
-    setTimeout(() => setShowTooltip(false), 2000);
-  };
+    
+    // Set new timeout
+    tooltipTimeoutRef.current = setTimeout(() => {
+      setShowTooltip(false);
+    }, 2000);
+  }, []);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (tooltipTimeoutRef.current) {
+        clearTimeout(tooltipTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="crypto-card">
@@ -176,6 +217,26 @@ const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, onPriceUpdate, g
       )}
     </div>
   );
+};
+
+CryptoCard.propTypes = {
+  crypto: PropTypes.shape({
+    BASE: PropTypes.string.isRequired,
+    PRICE: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    MOVING_24_HOUR_VOLUME: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    MOVING_24_HOUR_CHANGE_PERCENTAGE: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    MOVING_24_HOUR_HIGH: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    MOVING_24_HOUR_LOW: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  }).isRequired,
+  previousPrice: PropTypes.number,
+  fiveMinuteHistory: PropTypes.arrayOf(
+    PropTypes.shape({
+      price: PropTypes.number.isRequired,
+      timestamp: PropTypes.number.isRequired,
+    })
+  ),
+  onPriceUpdate: PropTypes.func.isRequired,
+  getCryptoFullName: PropTypes.func.isRequired,
 };
 
 export default CryptoCard;

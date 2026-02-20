@@ -1,6 +1,6 @@
 import React from 'react';
 
-const MarketTrendSummary = ({ cryptoData }) => {
+const MarketTrendSummary = ({ cryptoData, status, statusText }) => {
   if (!cryptoData || cryptoData.length === 0) {
     return (
       <div className="market-trend-summary">
@@ -46,6 +46,13 @@ const MarketTrendSummary = ({ cryptoData }) => {
   return (
     <div className="market-trend-summary">
       <h3>Market Trend</h3>
+      
+      {/* Connection Status Circle */}
+      <div className="connection-status">
+        <div className={`status-circle ${status}`}></div>
+        <span className="status-text">{statusText}</span>
+      </div>
+      
       <div className="trend-overview">
         <div className="sentiment-indicator">
           <span className={`sentiment-icon ${sentimentColor}`}>

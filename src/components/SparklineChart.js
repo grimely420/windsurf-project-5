@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 
 const SparklineChart = ({ data, width = 120, height = 40, trend }) => {
   if (!data || data.length < 2) {
