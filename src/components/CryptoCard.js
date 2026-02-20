@@ -8,6 +8,7 @@ const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, onPriceUpdate, g
   const fullName = getCryptoFullName(symbol);
   const currentPrice = parseFloat(crypto.PRICE || 0);
 
+  // Handle instant price change
   useEffect(() => {
     if (previousPrice && previousPrice !== currentPrice) {
       const change = ((currentPrice - previousPrice) / previousPrice) * 100;
@@ -27,8 +28,10 @@ const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, onPriceUpdate, g
         value: 0
       });
     }
-    
-    // Calculate 5-minute change
+  }, [currentPrice, previousPrice]);
+
+  // Handle 5-minute change
+  useEffect(() => {
     if (fiveMinuteHistory && fiveMinuteHistory.length > 1) {
       const oldestPrice = fiveMinuteHistory[0].price;
       const change = ((currentPrice - oldestPrice) / oldestPrice) * 100;
@@ -48,9 +51,12 @@ const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, onPriceUpdate, g
         value: 0
       });
     }
-    
+  }, [currentPrice, fiveMinuteHistory]);
+
+  // Update parent with current price
+  useEffect(() => {
     onPriceUpdate(symbol, currentPrice);
-  }, [currentPrice, previousPrice, symbol, fiveMinuteHistory]);
+  }, [currentPrice, symbol, onPriceUpdate]);
 
   const formatPrice = (price) => {
     if (price >= 1000) {
