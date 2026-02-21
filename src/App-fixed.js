@@ -185,6 +185,19 @@ function App() {
     closeWalletManager();
   };
 
+  const openExchangeManager = () => {
+    setExchangeManager({ isOpen: true });
+  };
+
+  const closeExchangeManager = () => {
+    setExchangeManager({ isOpen: false });
+  };
+
+  const handleExchangeSelect = (exchange) => {
+    setSelectedExchange(exchange);
+    closeExchangeManager();
+  };
+
   return (
     <div className="App">
       <header>
@@ -208,7 +221,7 @@ function App() {
                 <span className="wallet-balance">
                   {connectedWallet.balance.toFixed(4)} ETH
                 </span>
-                <button 
+                <button
                   className="wallet-disconnect-btn"
                   onClick={openWalletManager}
                 >
@@ -216,24 +229,38 @@ function App() {
                 </button>
               </div>
             ) : (
-                <React.Fragment>
-                  <button 
-                    className="connect-wallet-btn"
-                    onClick={openWalletManager}
-                  >
-                    🔗 Connect Wallet
-                  </button>
-                  <button 
-                    className="exchange-select-btn"
-                    onClick={openExchangeManager}
-                  >
-                    🏢 {selectedExchange === 'binance' ? 'Binance' : 'Coinbase'}
-                  </button>
-                </React.Fragment>
-              )}
+              <div>
+                <button
+                  className="connect-wallet-btn"
+                  onClick={openWalletManager}
+                >
+                  🔗 Connect Wallet
+                </button>
+                <button
+                  className="exchange-select-btn"
+                  onClick={openExchangeManager}
+                >
+                  🏢 {selectedExchange === 'binance' ? 'Binance' : 'Coinbase'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
+      
+      <TradeManager
+        crypto={tradeManager.crypto}
+        isOpen={tradeManager.isOpen}
+        onClose={closeTradeManager}
+        initialTradeType={tradeManager.initialType} />
+      <WalletManager
+        isOpen={walletManager.isOpen}
+        onClose={closeWalletManager}
+        onWalletConnect={handleWalletConnect} />
+      <ExchangeManager
+        isOpen={exchangeManager.isOpen}
+        onClose={closeExchangeManager}
+        onExchangeSelect={handleExchangeSelect} />
       
       <ErrorBoundary>
         <MarketTrendSummary cryptoData={cryptoData} status={status} statusText={statusText} />
@@ -247,40 +274,20 @@ function App() {
       
       <div className="crypto-grid">
         {cryptoData.map((crypto) => (
-          <ErrorBoundary key={crypto.BASE}>
-            <div className="crypto-card-with-indicators">
-              <CryptoCard 
-                crypto={crypto}
-                fiveMinuteHistory={fiveMinutePrices[crypto.BASE]}
-                getCryptoFullName={getCryptoFullName}
-                onOpenTradeManager={openTradeManager}
-              />
-              <TechnicalIndicators 
-                priceHistory={fiveMinutePrices[crypto.BASE]}
-                currentPrice={parseFloat(crypto.PRICE || 0)}
-              />
-            </div>
-          </ErrorBoundary>
+          <div key={crypto.BASE} className="crypto-card-with-indicators">
+            <CryptoCard 
+              crypto={crypto} 
+              fiveMinuteHistory={fiveMinuteHistory[crypto.BASE] || []}
+              getCryptoFullName={getCryptoFullName}
+              onOpenTradeManager={openTradeManager}
+            />
+            <TechnicalIndicators 
+              priceHistory={fiveMinuteHistory[crypto.BASE] || []}
+              currentPrice={parseFloat(crypto.PRICE)}
+            />
+          </div>
         ))}
       </div>
-      
-      <TradeManager 
-        crypto={tradeManager.crypto}
-        isOpen={tradeManager.isOpen}
-        onClose={closeTradeManager}
-        initialTradeType={tradeManager.initialType}
-      />
-      
-      <WalletManager 
-        isOpen={walletManager.isOpen}
-        onClose={closeWalletManager}
-        onWalletConnect={handleWalletConnect}
-      />
-    <ExchangeManager 
-        isOpen={exchangeManager.isOpen}
-        onClose={closeExchangeManager}
-        onExchangeSelect={handleExchangeSelect}
-      />
     </div>
   );
 }

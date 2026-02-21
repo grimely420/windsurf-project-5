@@ -110,7 +110,7 @@ const TechnicalIndicators = ({ priceHistory, currentPrice }) => {
 
   // Get price history from the data
   const prices = useMemo(() => {
-    if (!priceHistory || priceHistory.length === 0) return [];
+    if (!priceHistory || !Array.isArray(priceHistory) || priceHistory.length === 0) return [];
     return priceHistory.map(item => item.price).sort((a, b) => a - b);
   }, [priceHistory]);
 

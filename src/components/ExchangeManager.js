@@ -181,11 +181,11 @@ const ExchangeManager = ({ isOpen, onClose, onExchangeSelect }) => {
                     <div className="price-details">
                       <div className="exchange-price">
                         <span className="exchange-label">Coinbase:</span>
-                        <span className="price-value">${data.coinbase?.price?.toFixed(2) || 'N/A'}</span>
+                        <span className="price-value">${data.coinbase?.price ? Number(data.coinbase.price).toFixed(2) : 'N/A'}</span>
                       </div>
                       <div className="exchange-price">
                         <span className="exchange-label">Binance:</span>
-                        <span className="price-value">${data.binance?.price?.toFixed(2) || 'N/A'}</span>
+                        <span className="price-value">${data.binance?.price ? Number(data.binance.price).toFixed(2) : 'N/A'}</span>
                       </div>
                       {data.difference > 0 && (
                         <div className="price-difference">
