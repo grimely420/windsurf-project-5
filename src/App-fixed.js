@@ -24,6 +24,7 @@ function App() {
   const [connectedWallet, setConnectedWallet] = useState(null);
   const [exchangeManager, setExchangeManager] = useState({ isOpen: false });
   const [selectedExchange, setSelectedExchange] = useState('coinbase');
+  const [fiveMinuteHistory, setFiveMinuteHistory] = useState({});
 
   // Rate limiting: minimum 1 second between API calls
   const MIN_API_INTERVAL = 1000;
@@ -85,7 +86,7 @@ function App() {
           setRetryCount(0); // Reset retry count on success
           
           // Update 5-minute price history
-          setFiveMinutePrices(prev => {
+          setFiveMinuteHistory(prev => {
             const newHistory = { ...prev };
             
             validatedCryptoArray.forEach(crypto => {
