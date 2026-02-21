@@ -2,11 +2,10 @@ import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import PropTypes from 'prop-types';
 import SparklineChart from './SparklineChart';
 
-const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, onPriceUpdate, getCryptoFullName }) => {
+const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, getCryptoFullName }) => {
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipContent, setTooltipContent] = useState('');
   const tooltipTimeoutRef = useRef(null);
-  const lastReportedPriceRef = useRef(null);
   
   // Memoize expensive calculations
   const symbol = useMemo(() => {
@@ -73,16 +72,15 @@ const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, onPriceUpdate, g
 
   // Calculate 5-minute change (stable calculation) - Dollar amount
   const [fiveMinuteChange, setFiveMinuteChange] = useState(null);
-  const stableFiveMinuteRef = useRef(null);
   
   // Combined effect for all calculations and updates
   useEffect(() => {
-    // Update 5-minute change with stability - Dollar amount
+    // Update 5-minute change - Dollar amount (simplified)
     if (fiveMinuteHistory && fiveMinuteHistory.length > 1) {
       const sortedHistory = [...fiveMinuteHistory].sort((a, b) => a.timestamp - b.timestamp);
       const oldestPrice = sortedHistory[0].price;
       
-      if (oldestPrice !== 0) {
+      if (oldestPrice > 0) {
         const dollarChange = currentPrice - oldestPrice;
         const isPositive = dollarChange >= 0;
         
@@ -93,30 +91,18 @@ const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, onPriceUpdate, g
           value: dollarChange
         };
         
-        // Only update if significant change to prevent flickering
-        if (!stableFiveMinuteRef.current || 
-            Math.abs(newChange.value - stableFiveMinuteRef.current.value) > 0.01) {
-          setFiveMinuteChange(newChange);
-          stableFiveMinuteRef.current = newChange;
-        }
+        setFiveMinuteChange(newChange);
       }
-    } else if (!fiveMinuteChange && (!fiveMinuteHistory || fiveMinuteHistory.length === 0)) {
-      const neutralChange = {
+    } else if (!fiveMinuteChange) {
+      // Set neutral when no history
+      setFiveMinuteChange({
         class: 'neutral',
         icon: '●',
         text: '$0.00',
         value: 0
-      };
-      setFiveMinuteChange(neutralChange);
-      stableFiveMinuteRef.current = neutralChange;
+      });
     }
-
-    // Update parent with current price
-    if (lastReportedPriceRef.current !== currentPrice) {
-      onPriceUpdate(symbol, currentPrice);
-      lastReportedPriceRef.current = currentPrice;
-    }
-  }, [currentPrice, fiveMinuteHistory, symbol, onPriceUpdate, formatPrice]);
+  }, [currentPrice, fiveMinuteHistory, formatPrice]);
 
   const handleTooltip = useCallback((content) => {
     // Clear existing timeout
@@ -199,8 +185,8 @@ const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, onPriceUpdate, g
       
       <div className="crypto-details">
         <div className="detail-item">
-          <span className="detail-label">7d Volume</span>
-          <span className="detail-value">{formatVolume(crypto.MOVING_7_DAY_VOLUME || 0)}</span>
+          <span className="detail-label">1d Volume</span>
+          <span className="detail-value">{formatVolume(crypto.MOVING_24_HOUR_VOLUME || 0)}</span>
         </div>
         <div className="detail-item">
           <span className="detail-label">24h Change</span>

@@ -145,11 +145,6 @@ function App() {
     return () => clearInterval(interval);
   }, [lastApiCall, retryCount]);
 
-  const handlePriceUpdate = (symbol, currentPrice) => {
-    // This function will be called by CryptoCard to update previous prices
-    // But we're handling this in the main fetch cycle now
-  };
-
   const getCryptoFullName = (symbol) => {
     const names = {
       'BTC': 'Bitcoin',
@@ -188,7 +183,6 @@ function App() {
               crypto={crypto}
               previousPrice={previousPrices[crypto.BASE]}
               fiveMinuteHistory={fiveMinutePrices[crypto.BASE]}
-              onPriceUpdate={handlePriceUpdate}
               getCryptoFullName={getCryptoFullName}
             />
           </ErrorBoundary>
