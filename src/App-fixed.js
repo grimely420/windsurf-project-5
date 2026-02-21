@@ -4,6 +4,8 @@ import StatusIndicator from './components/StatusIndicator';
 import MarketTrendSummary from './components/MarketTrendSummary';
 import TradeManager from './components/TradeManager';
 import WalletManager from './components/WalletManager';
+import TechnicalIndicators from './components/TechnicalIndicators';
+import ExchangeManager from './components/ExchangeManager';
 import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
 import './Trading.css';
@@ -20,6 +22,8 @@ function App() {
   const [tradeManager, setTradeManager] = useState({ isOpen: false, crypto: null, initialType: 'buy' });
   const [walletManager, setWalletManager] = useState({ isOpen: false });
   const [connectedWallet, setConnectedWallet] = useState(null);
+  const [exchangeManager, setExchangeManager] = useState({ isOpen: false });
+  const [selectedExchange, setSelectedExchange] = useState('coinbase');
 
   // Rate limiting: minimum 1 second between API calls
   const MIN_API_INTERVAL = 1000;
@@ -212,13 +216,21 @@ function App() {
                 </button>
               </div>
             ) : (
-              <button 
-                className="connect-wallet-btn"
-                onClick={openWalletManager}
-              >
-                🔗 Connect Wallet
-              </button>
-            )}
+                <React.Fragment>
+                  <button 
+                    className="connect-wallet-btn"
+                    onClick={openWalletManager}
+                  >
+                    🔗 Connect Wallet
+                  </button>
+                  <button 
+                    className="exchange-select-btn"
+                    onClick={openExchangeManager}
+                  >
+                    🏢 {selectedExchange === 'binance' ? 'Binance' : 'Coinbase'}
+                  </button>
+                </React.Fragment>
+              )}
           </div>
         </div>
       </header>
@@ -236,12 +248,18 @@ function App() {
       <div className="crypto-grid">
         {cryptoData.map((crypto) => (
           <ErrorBoundary key={crypto.BASE}>
-            <CryptoCard 
-              crypto={crypto}
-              fiveMinuteHistory={fiveMinutePrices[crypto.BASE]}
-              getCryptoFullName={getCryptoFullName}
-              onOpenTradeManager={openTradeManager}
-            />
+            <div className="crypto-card-with-indicators">
+              <CryptoCard 
+                crypto={crypto}
+                fiveMinuteHistory={fiveMinutePrices[crypto.BASE]}
+                getCryptoFullName={getCryptoFullName}
+                onOpenTradeManager={openTradeManager}
+              />
+              <TechnicalIndicators 
+                priceHistory={fiveMinutePrices[crypto.BASE]}
+                currentPrice={parseFloat(crypto.PRICE || 0)}
+              />
+            </div>
           </ErrorBoundary>
         ))}
       </div>
@@ -257,6 +275,11 @@ function App() {
         isOpen={walletManager.isOpen}
         onClose={closeWalletManager}
         onWalletConnect={handleWalletConnect}
+      />
+    <ExchangeManager 
+        isOpen={exchangeManager.isOpen}
+        onClose={closeExchangeManager}
+        onExchangeSelect={handleExchangeSelect}
       />
     </div>
   );

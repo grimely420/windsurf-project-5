@@ -659,30 +659,540 @@
   background: #4b5563;
 }
 
+/* Technical Indicators Styles */
+.technical-indicators {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.indicators-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.indicators-header h4 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.current-price-display {
+  font-size: 24px;
+  font-weight: 700;
+  color: #10b981;
+  font-family: monospace;
+}
+
+.indicators-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.indicator-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.indicator-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.indicator-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.indicator-value {
+  font-size: 16px;
+  font-weight: 700;
+  font-family: monospace;
+}
+
+/* RSI Styles */
+.indicator-bar {
+  margin-top: 8px;
+}
+
+.rsi-scale {
+  position: relative;
+  height: 8px;
+  background: linear-gradient(to right, #ef4444 0%, #f59e0b 30%, #22c55e 50%, #10b981 70%, #10b981 100%);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+}
+
+.rsi-zone {
+  font-size: 10px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.rsi-indicator {
+  position: absolute;
+  top: -2px;
+  height: 12px;
+  width: 12px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* MACD Styles */
+.macd-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.macd-line,
+.signal-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.macd-line span:first-child,
+.signal-line span:first-child {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.macd-line span:last-child,
+.signal-line span:last-child {
+  font-family: monospace;
+  font-weight: 600;
+}
+
+/* Moving Averages Styles */
+.ma-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ma-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.ma-row span:first-child {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.ma-value {
+  font-family: monospace;
+  font-weight: 600;
+}
+
+.ma-value.ema {
+  color: #3b82f6;
+}
+
+/* Bollinger Bands Styles */
+.bb-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.bb-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.bb-row span:first-child {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.bb-value {
+  font-family: monospace;
+  font-weight: 600;
+}
+
+.bb-value.upper {
+  color: #ef4444;
+}
+
+.bb-value.middle {
+  color: #6b7280;
+}
+
+.bb-value.lower {
+  color: #10b981;
+}
+
+/* Trading Signals Styles */
+.signals-section {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.signals-section h4 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.no-signals {
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+  padding: 20px;
+}
+
+.signals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.signal-item {
+  padding: 12px;
+  border-radius: 8px;
+  border-left: 4px solid;
+  background: white;
+}
+
+.signal-item.buy {
+  border-left-color: #10b981;
+}
+
+.signal-item.sell {
+  border-left-color: #ef4444;
+}
+
+.signal-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.signal-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.signal-badge.buy {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.signal-badge.sell {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.signal-source {
+  font-size: 12px;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.signal-strength {
+  font-size: 11px;
+  color: #9ca3af;
+  background: #f3f4f6;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: capitalize;
+}
+
+.signal-text {
+  font-size: 14px;
+  color: #374151;
+  font-weight: 500;
+}
+
+/* Exchange Manager Styles */
+.exchange-manager-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1002;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.exchange-manager {
+  background: white;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  animation: slideUp 0.3s ease-out;
+}
+
+.exchange-manager-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.exchange-manager-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.exchange-content {
+  padding: 20px;
+}
+
+.exchange-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.exchange-option {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.exchange-option:hover {
+  border-color: #3b82f6;
+  background: #f8fafc;
+  transform: translateY(-2px);
+}
+
+.exchange-option.selected {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.exchange-option.coming-soon {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.exchange-option.coming-soon:hover {
+  transform: none;
+}
+
+.exchange-icon {
+  font-size: 32px;
+  margin-right: 16px;
+  min-width: 40px;
+}
+
+.exchange-info {
+  flex: 1;
+}
+
+.exchange-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 4px;
+}
+
+.exchange-description {
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.exchange-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.feature-tag {
+  font-size: 11px;
+  background: #f3f4f6;
+  color: #374151;
+  padding: 3px 8px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.exchange-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.status-text {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.coming-soon-badge {
+  background: #f59e0b;
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.best-prices-section {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.best-prices-section h4 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.price-comparison {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.price-item {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+}
+
+.price-symbol {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.price-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.exchange-price {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f9fafb;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+.exchange-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.price-value {
+  font-family: monospace;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.price-difference {
+  background: #10b981;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  margin-top: 8px;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
-  .wallet-manager {
+  .exchange-manager {
     width: 95%;
     margin: 20px;
   }
   
-  .wallet-option {
-    padding: 12px;
+  .exchange-option {
+    padding: 16px;
   }
   
-  .wallet-icon {
+  .exchange-icon {
     font-size: 24px;
     margin-right: 12px;
   }
   
-  .header-content {
-    flex-direction: column;
-    gap: 16px;
-    align-items: flex-start;
+  .exchange-features {
+    justify-content: center;
   }
   
-  .wallet-status {
-    flex-wrap: wrap;
-    gap: 8px;
+  .price-details {
+    font-size: 12px;
   }
 }
