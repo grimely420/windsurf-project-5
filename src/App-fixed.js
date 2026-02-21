@@ -2,19 +2,24 @@ import React, { useState, useEffect } from 'react';
 import CryptoCard from './components/CryptoCard';
 import StatusIndicator from './components/StatusIndicator';
 import MarketTrendSummary from './components/MarketTrendSummary';
+import TradeManager from './components/TradeManager';
+import WalletManager from './components/WalletManager';
 import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
+import './Trading.css';
 
 function App() {
   const [cryptoData, setCryptoData] = useState([]);
   const [fiveMinutePrices, setFiveMinutePrices] = useState({});
-  const [previousPrices, setPreviousPrices] = useState({});
   const [status, setStatus] = useState('loading');
   const [statusText, setStatusText] = useState('Loading...');
   const [error, setError] = useState(null);
   const [lastApiCall, setLastApiCall] = useState(0);
   const [retryCount, setRetryCount] = useState(0);
   const [lastUpdateTime, setLastUpdateTime] = useState(null);
+  const [tradeManager, setTradeManager] = useState({ isOpen: false, crypto: null, initialType: 'buy' });
+  const [walletManager, setWalletManager] = useState({ isOpen: false });
+  const [connectedWallet, setConnectedWallet] = useState(null);
 
   // Rate limiting: minimum 1 second between API calls
   const MIN_API_INTERVAL = 1000;
@@ -69,20 +74,6 @@ function App() {
 
           const currentTime = Date.now();
           
-          // Update previous prices with current prices before updating
-          setPreviousPrices(prev => {
-            const newPreviousPrices = { ...prev };
-            validatedCryptoArray.forEach(crypto => {
-              const symbol = crypto.BASE;
-              const currentPrice = parseFloat(crypto.PRICE);
-              // Only update if we don't have a previous price yet, or if it's different
-              if (!newPreviousPrices[symbol] || newPreviousPrices[symbol] !== currentPrice) {
-                newPreviousPrices[symbol] = currentPrice;
-              }
-            });
-            return newPreviousPrices;
-          });
-          
           // Update crypto data and 5-minute history
           setCryptoData(validatedCryptoArray);
           setLastApiCall(currentTime);
@@ -101,9 +92,16 @@ function App() {
               const history = prev[symbol] || [];
               const newHistoryForSymbol = [...history, { price: currentPrice, timestamp: currentTime }];
               
-              // Keep only last 5 minutes of data
+              // Keep only last 5 minutes of data (fix: use >= instead of >)
               const fiveMinutesAgo = currentTime - 300000; // 5 minutes
-              const filteredHistory = newHistoryForSymbol.filter(entry => entry.timestamp > fiveMinutesAgo);
+              const filteredHistory = newHistoryForSymbol.filter(entry => entry.timestamp >= fiveMinutesAgo);
+              
+              console.log(`5-minute history for ${symbol}:`, {
+                currentPrice,
+                historyLength: filteredHistory.length,
+                oldestPrice: filteredHistory.length > 0 ? filteredHistory[0].price : 'none',
+                newestPrice: filteredHistory.length > 0 ? filteredHistory[filteredHistory.length - 1].price : 'none'
+              });
               
               newHistory[symbol] = filteredHistory;
             });
@@ -154,16 +152,75 @@ function App() {
     return names[symbol] || symbol;
   };
 
+  const openTradeManager = (crypto, initialType) => {
+    setTradeManager({
+      isOpen: true,
+      crypto,
+      initialType
+    });
+  };
+
+  const closeTradeManager = () => {
+    setTradeManager({
+      isOpen: false,
+      crypto: null,
+      initialType: 'buy'
+    });
+  };
+
+  const openWalletManager = () => {
+    setWalletManager({ isOpen: true });
+  };
+
+  const closeWalletManager = () => {
+    setWalletManager({ isOpen: false });
+  };
+
+  const handleWalletConnect = (wallet) => {
+    setConnectedWallet(wallet);
+    closeWalletManager();
+  };
+
   return (
     <div className="App">
       <header>
-        <h1>Crypto Price Tracker</h1>
-        <p>Real-time crypto from Coinbase</p>
-        {lastUpdateTime && (
-          <p className="last-update-time">
-            Last update: {lastUpdateTime.toLocaleTimeString()}
-          </p>
-        )}
+        <div className="header-content">
+          <div className="header-text">
+            <h1>Crypto Price Tracker</h1>
+            <p>Real-time crypto from Coinbase</p>
+            {lastUpdateTime && (
+              <p className="last-update-time">
+                Last update: {lastUpdateTime.toLocaleTimeString()}
+              </p>
+            )}
+          </div>
+          <div className="header-actions">
+            {connectedWallet ? (
+              <div className="wallet-status">
+                <span className="wallet-indicator">🔗</span>
+                <span className="wallet-address">
+                  {connectedWallet.address.slice(0, 6)}...{connectedWallet.address.slice(-4)}
+                </span>
+                <span className="wallet-balance">
+                  {connectedWallet.balance.toFixed(4)} ETH
+                </span>
+                <button 
+                  className="wallet-disconnect-btn"
+                  onClick={openWalletManager}
+                >
+                  Manage
+                </button>
+              </div>
+            ) : (
+              <button 
+                className="connect-wallet-btn"
+                onClick={openWalletManager}
+              >
+                🔗 Connect Wallet
+              </button>
+            )}
+          </div>
+        </div>
       </header>
       
       <ErrorBoundary>
@@ -181,13 +238,26 @@ function App() {
           <ErrorBoundary key={crypto.BASE}>
             <CryptoCard 
               crypto={crypto}
-              previousPrice={previousPrices[crypto.BASE]}
               fiveMinuteHistory={fiveMinutePrices[crypto.BASE]}
               getCryptoFullName={getCryptoFullName}
+              onOpenTradeManager={openTradeManager}
             />
           </ErrorBoundary>
         ))}
       </div>
+      
+      <TradeManager 
+        crypto={tradeManager.crypto}
+        isOpen={tradeManager.isOpen}
+        onClose={closeTradeManager}
+        initialTradeType={tradeManager.initialType}
+      />
+      
+      <WalletManager 
+        isOpen={walletManager.isOpen}
+        onClose={closeWalletManager}
+        onWalletConnect={handleWalletConnect}
+      />
     </div>
   );
 }

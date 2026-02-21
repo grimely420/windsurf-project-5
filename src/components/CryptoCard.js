@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import PropTypes from 'prop-types';
 import SparklineChart from './SparklineChart';
 
-const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, getCryptoFullName }) => {
+const CryptoCard = ({ crypto, fiveMinuteHistory, getCryptoFullName, onOpenTradeManager }) => {
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipContent, setTooltipContent] = useState('');
   const tooltipTimeoutRef = useRef(null);
@@ -39,28 +39,6 @@ const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, getCryptoFullNam
     }
   }, []);
 
-  // Display instant price change (last update vs current)
-  const priceChange = useMemo(() => {
-    if (previousPrice && previousPrice !== currentPrice && previousPrice !== 0) {
-      const change = ((currentPrice - previousPrice) / previousPrice) * 100;
-      const isPositive = change >= 0;
-      
-      return {
-        class: isPositive ? 'positive' : 'negative',
-        icon: isPositive ? '▲' : '▼',
-        text: `${isPositive ? '+' : ''}${change.toFixed(2)}%`,
-        value: change
-      };
-    }
-    
-    return {
-      class: 'neutral',
-      icon: '●',
-      text: '0.00%',
-      value: 0
-    };
-  }, [currentPrice, previousPrice]);
-
   // Calculate trend directly from data for sparkline (real-time)
   const sparklineTrend = useMemo(() => {
     if (!fiveMinuteHistory || fiveMinuteHistory.length < 2) return 0;
@@ -75,10 +53,20 @@ const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, getCryptoFullNam
   
   // Combined effect for all calculations and updates
   useEffect(() => {
+    // Debug: Log the data
+    console.log('CryptoCard Debug:', {
+      symbol,
+      currentPrice,
+      fiveMinuteHistory: fiveMinuteHistory ? fiveMinuteHistory.length : 0,
+      hasHistory: fiveMinuteHistory && fiveMinuteHistory.length > 1
+    });
+    
     // Update 5-minute change - Dollar amount (simplified)
     if (fiveMinuteHistory && fiveMinuteHistory.length > 1) {
       const sortedHistory = [...fiveMinuteHistory].sort((a, b) => a.timestamp - b.timestamp);
       const oldestPrice = sortedHistory[0].price;
+      
+      console.log('5-minute calculation:', { oldestPrice, currentPrice });
       
       if (oldestPrice > 0) {
         const dollarChange = currentPrice - oldestPrice;
@@ -91,18 +79,20 @@ const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, getCryptoFullNam
           value: dollarChange
         };
         
+        console.log('Setting 5-minute change:', newChange);
         setFiveMinuteChange(newChange);
       }
     } else if (!fiveMinuteChange) {
-      // Set neutral when no history
+      // Set neutral with no icon when no history
+      console.log('No 5-minute history, setting neutral');
       setFiveMinuteChange({
         class: 'neutral',
-        icon: '●',
+        icon: '',
         text: '$0.00',
         value: 0
       });
     }
-  }, [currentPrice, fiveMinuteHistory, formatPrice]);
+  }, [currentPrice, fiveMinuteHistory, formatPrice, symbol]);
 
   const handleTooltip = useCallback((content) => {
     // Clear existing timeout
@@ -138,15 +128,6 @@ const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, getCryptoFullNam
             <div className="crypto-fullname">{fullName}</div>
           </div>
         </div>
-        <div className="trend-indicator">
-          <span 
-            className={`trend-arrow ${priceChange?.class || 'neutral'}`}
-            onMouseEnter={() => handleTooltip(`Instant change: ${priceChange?.text || '0.00%'}`)}
-            style={{ cursor: 'help' }}
-          >
-            {priceChange?.icon}
-          </span>
-        </div>
       </div>
       
       <div className="crypto-price">
@@ -163,15 +144,6 @@ const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, getCryptoFullNam
       </div>
       
       <div className="price-change-container">
-        <div 
-          className={`price-change ${priceChange?.class || 'neutral'}`}
-          onMouseEnter={() => handleTooltip(`Last update: ${priceChange?.text || '0.00%'}`)}
-          style={{ cursor: 'help' }}
-        >
-          <span className="change-label">Last:</span>
-          <span className="change-icon">{priceChange?.icon}</span>
-          <span className="change-text">{priceChange?.text}</span>
-        </div>
         <div 
           className={`price-change five-minute ${fiveMinuteChange?.class || 'neutral'}`}
           onMouseEnter={() => handleTooltip(`5-minute change: ${fiveMinuteChange?.text || '$0.00'}`)}
@@ -204,8 +176,23 @@ const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, getCryptoFullNam
         </div>
       </div>
       
+      <div className="trading-buttons">
+        <button 
+          className="trade-btn buy-btn"
+          onClick={() => onOpenTradeManager(crypto, 'buy')}
+        >
+          Buy {symbol}
+        </button>
+        <button 
+          className="trade-btn sell-btn"
+          onClick={() => onOpenTradeManager(crypto, 'sell')}
+        >
+          Sell {symbol}
+        </button>
+      </div>
+      
       {showTooltip && (
-        <div className="tooltip">
+        <div className="crypto-tooltip">
           {tooltipContent}
         </div>
       )}
@@ -217,20 +204,19 @@ CryptoCard.propTypes = {
   crypto: PropTypes.shape({
     BASE: PropTypes.string.isRequired,
     PRICE: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-    MOVING_7_DAY_VOLUME: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    MOVING_24_HOUR_VOLUME: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     MOVING_24_HOUR_CHANGE_PERCENTAGE: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     MOVING_24_HOUR_HIGH: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     MOVING_24_HOUR_LOW: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   }).isRequired,
-  previousPrice: PropTypes.number,
   fiveMinuteHistory: PropTypes.arrayOf(
     PropTypes.shape({
       price: PropTypes.number.isRequired,
       timestamp: PropTypes.number.isRequired,
     })
   ),
-  onPriceUpdate: PropTypes.func.isRequired,
   getCryptoFullName: PropTypes.func.isRequired,
+  onOpenTradeManager: PropTypes.func.isRequired,
 };
 
 export default CryptoCard;
