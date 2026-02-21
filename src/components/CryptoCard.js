@@ -40,17 +40,17 @@ const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, onPriceUpdate, g
     }
   }, []);
 
-  // Display 24-hour change directly from API
+  // Display instant price change (last update vs current)
   const priceChange = useMemo(() => {
-    if (crypto.MOVING_24_HOUR_CHANGE_PERCENTAGE) {
-      const change24h = parseFloat(crypto.MOVING_24_HOUR_CHANGE_PERCENTAGE) || 0;
-      const isPositive = change24h >= 0;
+    if (previousPrice && previousPrice !== currentPrice && previousPrice !== 0) {
+      const change = ((currentPrice - previousPrice) / previousPrice) * 100;
+      const isPositive = change >= 0;
       
       return {
         class: isPositive ? 'positive' : 'negative',
         icon: isPositive ? '▲' : '▼',
-        text: `${isPositive ? '+' : ''}${change24h.toFixed(2)}%`,
-        value: change24h
+        text: `${isPositive ? '+' : ''}${change.toFixed(2)}%`,
+        value: change
       };
     }
     
@@ -60,36 +60,55 @@ const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, onPriceUpdate, g
       text: '0.00%',
       value: 0
     };
-  }, [crypto.MOVING_24_HOUR_CHANGE_PERCENTAGE]);
+  }, [currentPrice, previousPrice]);
 
-  // Calculate 5-minute change (only calculation we need to do)
+  // Calculate trend directly from data for sparkline (real-time)
+  const sparklineTrend = useMemo(() => {
+    if (!fiveMinuteHistory || fiveMinuteHistory.length < 2) return 0;
+    const sortedHistory = [...fiveMinuteHistory].sort((a, b) => a.timestamp - b.timestamp);
+    const oldestPrice = sortedHistory[0].price;
+    // Use current price for real-time trend calculation
+    return ((currentPrice - oldestPrice) / oldestPrice) * 100;
+  }, [fiveMinuteHistory, currentPrice]);
+
+  // Calculate 5-minute change (stable calculation) - Dollar amount
   const [fiveMinuteChange, setFiveMinuteChange] = useState(null);
+  const stableFiveMinuteRef = useRef(null);
   
   // Combined effect for all calculations and updates
   useEffect(() => {
-    // Update 5-minute change
+    // Update 5-minute change with stability - Dollar amount
     if (fiveMinuteHistory && fiveMinuteHistory.length > 1) {
       const sortedHistory = [...fiveMinuteHistory].sort((a, b) => a.timestamp - b.timestamp);
       const oldestPrice = sortedHistory[0].price;
       
       if (oldestPrice !== 0) {
-        const change = ((currentPrice - oldestPrice) / oldestPrice) * 100;
-        const isPositive = change >= 0;
+        const dollarChange = currentPrice - oldestPrice;
+        const isPositive = dollarChange >= 0;
         
-        setFiveMinuteChange({
+        const newChange = {
           class: isPositive ? 'positive' : 'negative',
           icon: isPositive ? '▲' : '▼',
-          text: `${isPositive ? '+' : ''}${change.toFixed(2)}%`,
-          value: change
-        });
+          text: `${isPositive ? '+' : ''}${formatPrice(Math.abs(dollarChange))}`,
+          value: dollarChange
+        };
+        
+        // Only update if significant change to prevent flickering
+        if (!stableFiveMinuteRef.current || 
+            Math.abs(newChange.value - stableFiveMinuteRef.current.value) > 0.01) {
+          setFiveMinuteChange(newChange);
+          stableFiveMinuteRef.current = newChange;
+        }
       }
     } else if (!fiveMinuteChange && (!fiveMinuteHistory || fiveMinuteHistory.length === 0)) {
-      setFiveMinuteChange({
+      const neutralChange = {
         class: 'neutral',
         icon: '●',
-        text: '0.00%',
+        text: '$0.00',
         value: 0
-      });
+      };
+      setFiveMinuteChange(neutralChange);
+      stableFiveMinuteRef.current = neutralChange;
     }
 
     // Update parent with current price
@@ -97,7 +116,7 @@ const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, onPriceUpdate, g
       onPriceUpdate(symbol, currentPrice);
       lastReportedPriceRef.current = currentPrice;
     }
-  }, [currentPrice, fiveMinuteHistory, symbol, onPriceUpdate]);
+  }, [currentPrice, fiveMinuteHistory, symbol, onPriceUpdate, formatPrice]);
 
   const handleTooltip = useCallback((content) => {
     // Clear existing timeout
@@ -151,7 +170,7 @@ const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, onPriceUpdate, g
       <div className="sparkline-container">
         <SparklineChart 
           data={fiveMinuteHistory} 
-          trend={fiveMinuteChange?.value || 0}
+          trend={sparklineTrend}
           width={150}
           height={50}
         />
@@ -163,12 +182,13 @@ const CryptoCard = ({ crypto, previousPrice, fiveMinuteHistory, onPriceUpdate, g
           onMouseEnter={() => handleTooltip(`Last update: ${priceChange?.text || '0.00%'}`)}
           style={{ cursor: 'help' }}
         >
+          <span className="change-label">Last:</span>
           <span className="change-icon">{priceChange?.icon}</span>
           <span className="change-text">{priceChange?.text}</span>
         </div>
         <div 
           className={`price-change five-minute ${fiveMinuteChange?.class || 'neutral'}`}
-          onMouseEnter={() => handleTooltip(`5-minute trend: ${fiveMinuteChange?.text || '0.00%'}`)}
+          onMouseEnter={() => handleTooltip(`5-minute change: ${fiveMinuteChange?.text || '$0.00'}`)}
           style={{ cursor: 'help' }}
         >
           <span className="change-label">5m:</span>

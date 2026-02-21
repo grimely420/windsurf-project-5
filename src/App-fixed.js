@@ -3,18 +3,21 @@ import CryptoCard from './components/CryptoCard';
 import StatusIndicator from './components/StatusIndicator';
 import MarketTrendSummary from './components/MarketTrendSummary';
 import ErrorBoundary from './components/ErrorBoundary';
+import './App.css';
 
 function App() {
   const [cryptoData, setCryptoData] = useState([]);
   const [fiveMinutePrices, setFiveMinutePrices] = useState({});
+  const [previousPrices, setPreviousPrices] = useState({});
   const [status, setStatus] = useState('loading');
   const [statusText, setStatusText] = useState('Loading...');
   const [error, setError] = useState(null);
   const [lastApiCall, setLastApiCall] = useState(0);
   const [retryCount, setRetryCount] = useState(0);
+  const [lastUpdateTime, setLastUpdateTime] = useState(null);
 
-  // Rate limiting: minimum 5 seconds between API calls
-  const MIN_API_INTERVAL = 5000;
+  // Rate limiting: minimum 1 second between API calls
+  const MIN_API_INTERVAL = 1000;
   const MAX_RETRIES = 3;
 
   // Simple API call with rate limiting and retry logic
@@ -66,9 +69,24 @@ function App() {
 
           const currentTime = Date.now();
           
+          // Update previous prices with current prices before updating
+          setPreviousPrices(prev => {
+            const newPreviousPrices = { ...prev };
+            validatedCryptoArray.forEach(crypto => {
+              const symbol = crypto.BASE;
+              const currentPrice = parseFloat(crypto.PRICE);
+              // Only update if we don't have a previous price yet, or if it's different
+              if (!newPreviousPrices[symbol] || newPreviousPrices[symbol] !== currentPrice) {
+                newPreviousPrices[symbol] = currentPrice;
+              }
+            });
+            return newPreviousPrices;
+          });
+          
           // Update crypto data and 5-minute history
           setCryptoData(validatedCryptoArray);
           setLastApiCall(currentTime);
+          setLastUpdateTime(new Date(currentTime)); // Set exact update time
           setRetryCount(0); // Reset retry count on success
           
           // Update 5-minute price history
@@ -122,10 +140,15 @@ function App() {
     // Set up polling with rate limiting
     const interval = setInterval(() => {
       fetchData();
-    }, 10000); // Poll every 10 seconds
+    }, 1000); // Poll every 1 second
     
     return () => clearInterval(interval);
   }, [lastApiCall, retryCount]);
+
+  const handlePriceUpdate = (symbol, currentPrice) => {
+    // This function will be called by CryptoCard to update previous prices
+    // But we're handling this in the main fetch cycle now
+  };
 
   const getCryptoFullName = (symbol) => {
     const names = {
@@ -140,7 +163,12 @@ function App() {
     <div className="App">
       <header>
         <h1>Crypto Price Tracker</h1>
-        <p>Real-time cryptocurrency prices from Coinbase</p>
+        <p>Real-time crypto from Coinbase</p>
+        {lastUpdateTime && (
+          <p className="last-update-time">
+            Last update: {lastUpdateTime.toLocaleTimeString()}
+          </p>
+        )}
       </header>
       
       <ErrorBoundary>
@@ -158,9 +186,9 @@ function App() {
           <ErrorBoundary key={crypto.BASE}>
             <CryptoCard 
               crypto={crypto}
-              previousPrice={null}
+              previousPrice={previousPrices[crypto.BASE]}
               fiveMinuteHistory={fiveMinutePrices[crypto.BASE]}
-              onPriceUpdate={() => {}}
+              onPriceUpdate={handlePriceUpdate}
               getCryptoFullName={getCryptoFullName}
             />
           </ErrorBoundary>
