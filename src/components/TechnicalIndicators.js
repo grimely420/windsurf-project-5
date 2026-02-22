@@ -5,6 +5,15 @@ const TechnicalIndicators = ({ priceHistory, currentPrice }) => {
   // Add loading state
   const [isCalculating, setIsCalculating] = useState(false);
   // Validate props
+  console.log('TechnicalIndicators - Props received:', { 
+    priceHistory, 
+    currentPrice,
+    priceHistoryType: typeof priceHistory,
+    priceHistoryLength: priceHistory?.length,
+    firstItem: priceHistory?.[0],
+    lastItem: priceHistory?.[priceHistory?.length - 1]
+  });
+
   const safeCurrentPrice = useMemo(() => {
     if (typeof currentPrice === 'number' && !isNaN(currentPrice)) {
       return currentPrice;
@@ -92,9 +101,9 @@ const TechnicalIndicators = ({ priceHistory, currentPrice }) => {
 
     return {
       sma20: calculateSMA(prices, 20),
-      ema20: calculateEMA(prices, 20)[0],
+      ema20: calculateEMA(prices, 20)[0] || 0,
       sma50: calculateSMA(prices, 50),
-      ema50: calculateEMA(prices, 50)
+      ema50: calculateEMA(prices, 50)[0] || 0
     };
   };
 
@@ -120,6 +129,12 @@ const TechnicalIndicators = ({ priceHistory, currentPrice }) => {
 
   // Get price history from the data with enhanced validation
   const prices = useMemo(() => {
+    console.log('TechnicalIndicators - Processing priceHistory:', { 
+      priceHistory, 
+      isArray: Array.isArray(priceHistory),
+      length: priceHistory?.length 
+    });
+    
     if (!priceHistory || !Array.isArray(priceHistory) || priceHistory.length === 0) {
       console.warn('TechnicalIndicators: Invalid priceHistory data', { priceHistory });
       return [];
@@ -129,6 +144,12 @@ const TechnicalIndicators = ({ priceHistory, currentPrice }) => {
       const validPrices = priceHistory
         .filter(item => item && typeof item.price === 'number' && !isNaN(item.price))
         .map(item => item.price);
+      
+      console.log('TechnicalIndicators - Valid prices:', { 
+        originalLength: priceHistory.length,
+        validLength: validPrices.length,
+        validPrices: validPrices.slice(0, 5) // Show first 5 for debugging
+      });
       
       if (validPrices.length === 0) {
         console.warn('TechnicalIndicators: No valid prices found in priceHistory');
@@ -144,6 +165,11 @@ const TechnicalIndicators = ({ priceHistory, currentPrice }) => {
 
   // Calculate all indicators with error handling
   const indicators = useMemo(() => {
+    console.log('TechnicalIndicators - Calculating indicators:', { 
+      pricesLength: prices.length,
+      prices: prices.slice(0, 5) // Show first 5 for debugging
+    });
+    
     if (prices.length === 0) {
       console.warn('TechnicalIndicators: No prices available for calculations');
       return {
@@ -155,12 +181,15 @@ const TechnicalIndicators = ({ priceHistory, currentPrice }) => {
     }
 
     try {
-      return {
+      const calculated = {
         rsi: calculateRSI(prices),
         macd: calculateMACD(prices),
         movingAverages: calculateMovingAverages(prices),
         bollingerBands: calculateBollingerBands(prices)
       };
+      
+      console.log('TechnicalIndicators - Calculated indicators:', calculated);
+      return calculated;
     } catch (error) {
       console.error('TechnicalIndicators: Error calculating indicators', error);
       return {
@@ -242,7 +271,7 @@ const TechnicalIndicators = ({ priceHistory, currentPrice }) => {
               className="indicator-value" 
               style={{ color: getRSIColor(indicators.rsi) }}
             >
-              {indicators.rsi}
+              {indicators.rsi ? indicators.rsi.toFixed(2) : '0.00'}
             </span>
           </div>
           <div className="indicator-bar">
@@ -253,7 +282,7 @@ const TechnicalIndicators = ({ priceHistory, currentPrice }) => {
               <div 
                 className="rsi-indicator"
                 style={{ 
-                  left: `${Math.min(Math.max(indicators.rsi, 0), 100)}%`,
+                  left: `${Math.min(Math.max(indicators.rsi || 0, 0), 100)}%`,
                   backgroundColor: getRSIColor(indicators.rsi)
                 }}
               />
@@ -269,17 +298,17 @@ const TechnicalIndicators = ({ priceHistory, currentPrice }) => {
               className="indicator-value"
               style={{ color: getMACDColor(indicators.macd.histogram) }}
             >
-              {indicators.macd.histogram > 0 ? '+' : ''}{indicators.macd.histogram.toFixed(4)}
+              {indicators.macd?.histogram ? (indicators.macd.histogram > 0 ? '+' : '') + indicators.macd.histogram.toFixed(4) : '0.0000'}
             </span>
           </div>
           <div className="macd-info">
             <div className="macd-line">
               <span>MACD:</span>
-              <span>{indicators.macd.macd.toFixed(4)}</span>
+              <span>{indicators.macd?.macd ? indicators.macd.macd.toFixed(4) : '0.0000'}</span>
             </div>
             <div className="signal-line">
               <span>Signal:</span>
-              <span>{indicators.macd.signal.toFixed(4)}</span>
+              <span>{indicators.macd?.signal ? indicators.macd.signal.toFixed(4) : '0.0000'}</span>
             </div>
           </div>
         </div>
@@ -292,19 +321,19 @@ const TechnicalIndicators = ({ priceHistory, currentPrice }) => {
           <div className="ma-info">
             <div className="ma-row">
               <span>SMA 20:</span>
-              <span className="ma-value">${indicators.movingAverages.sma20.toFixed(2)}</span>
+              <span className="ma-value">${indicators.movingAverages?.sma20 ? indicators.movingAverages.sma20.toFixed(2) : '0.00'}</span>
             </div>
             <div className="ma-row">
               <span>EMA 20:</span>
-              <span className="ma-value ema">${indicators.movingAverages.ema20.toFixed(2)}</span>
+              <span className="ma-value ema">${indicators.movingAverages?.ema20 ? indicators.movingAverages.ema20.toFixed(2) : '0.00'}</span>
             </div>
             <div className="ma-row">
               <span>SMA 50:</span>
-              <span className="ma-value">${indicators.movingAverages.sma50.toFixed(2)}</span>
+              <span className="ma-value">${indicators.movingAverages?.sma50 ? indicators.movingAverages.sma50.toFixed(2) : '0.00'}</span>
             </div>
             <div className="ma-row">
               <span>EMA 50:</span>
-              <span className="ma-value ema">${indicators.movingAverages.ema50.toFixed(2)}</span>
+              <span className="ma-value ema">${indicators.movingAverages?.ema50 ? indicators.movingAverages.ema50.toFixed(2) : '0.00'}</span>
             </div>
           </div>
         </div>
@@ -317,15 +346,15 @@ const TechnicalIndicators = ({ priceHistory, currentPrice }) => {
           <div className="bb-info">
             <div className="bb-row">
               <span>Upper:</span>
-              <span className="bb-value upper">${indicators.bollingerBands.upper.toFixed(2)}</span>
+              <span className="bb-value upper">${indicators.bollingerBands?.upper ? indicators.bollingerBands.upper.toFixed(2) : '0.00'}</span>
             </div>
             <div className="bb-row">
               <span>Middle:</span>
-              <span className="bb-value middle">${indicators.bollingerBands.middle.toFixed(2)}</span>
+              <span className="bb-value middle">${indicators.bollingerBands?.middle ? indicators.bollingerBands.middle.toFixed(2) : '0.00'}</span>
             </div>
             <div className="bb-row">
               <span>Lower:</span>
-              <span className="bb-value lower">${indicators.bollingerBands.lower.toFixed(2)}</span>
+              <span className="bb-value lower">${indicators.bollingerBands?.lower ? indicators.bollingerBands.lower.toFixed(2) : '0.00'}</span>
             </div>
           </div>
         </div>

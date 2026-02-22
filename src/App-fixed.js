@@ -27,8 +27,7 @@ function App() {
 
   // Enhanced API configuration
   const API_CONFIG = {
-    BASE_URL: process.env.REACT_APP_API_BASE_URL || 'https://data-api.coindesk.com/spot/v1/latest/tick?market=coinbase&instruments=BTC-USD,ETH-USD,BNB-USD&apply_mapping=true&groups=ID,VALUE,LAST_UPDATE,MOVING_7_DAY,MOVING_24_HOUR',
-    API_KEY: process.env.REACT_APP_COINDESK_API_KEY || 'b25261954a90a07e2ba14216f21bb9d9cc354182be6298904478f0d283095551',
+    BASE_URL: process.env.REACT_APP_API_BASE_URL || 'https://data-api.coindesk.com/spot/v1/latest/tick?market=coinbase&instruments=BTC-USD,ETH-USD,BNB-USD&apply_mapping=true&groups=ID,VALUE,LAST_UPDATE,MOVING_7_DAY,MOVING_24_HOUR&api_key=b25261954a90a07e2ba14216f21bb9d9cc354182be6298904478f0d283095551',
     MIN_INTERVAL: 1000,
     MAX_RETRIES: 3,
     RETRY_DELAY: 2000,
@@ -71,17 +70,13 @@ function App() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
         
-        if (!API_CONFIG.API_KEY) {
-          throw new Error('API key not configured');
-        }
+        
         
         // Enhanced API request with better headers and error handling
         const response = await fetch(API_CONFIG.BASE_URL, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            'User-Agent': 'CryptoTracker/1.0',
-            ...(API_CONFIG.API_KEY && { 'Authorization': `Bearer ${API_CONFIG.API_KEY}` })
           },
           signal: controller.signal
         });
@@ -96,6 +91,8 @@ function App() {
         
         // Debug: Log the actual API response structure
         console.log('CoinDesk API Response:', data);
+        console.log('Data object:', data.Data);
+        console.log('Data keys:', data.Data ? Object.keys(data.Data) : 'null');
         
         if (!data) {
           throw new Error('No data received from API');
@@ -113,7 +110,13 @@ function App() {
             PRICE_FLAG: cryptoData.PRICE_FLAG,
             LAST_UPDATE: cryptoData.PRICE_LAST_UPDATE_TS,
             MOVING_7_DAY: cryptoData.MOVING_7_DAY_CHANGE_PERCENTAGE,
-            MOVING_24_HOUR: cryptoData.MOVING_24_HOUR_CHANGE_PERCENTAGE
+            MOVING_24_HOUR: cryptoData.MOVING_24_HOUR_CHANGE_PERCENTAGE,
+            MOVING_24_HOUR_VOLUME: cryptoData.MOVING_24_HOUR_VOLUME,
+            MOVING_24_HOUR_HIGH: cryptoData.MOVING_24_HOUR_HIGH,
+            MOVING_24_HOUR_LOW: cryptoData.MOVING_24_HOUR_LOW,
+            MOVING_24_HOUR_OPEN: cryptoData.MOVING_24_HOUR_OPEN,
+            MOVING_24_HOUR_CHANGE: cryptoData.MOVING_24_HOUR_CHANGE,
+            MOVING_24_HOUR_CHANGE_PERCENTAGE: cryptoData.MOVING_24_HOUR_CHANGE_PERCENTAGE
           }));
         } else if (Array.isArray(data)) {
           // Direct array response
@@ -141,8 +144,9 @@ function App() {
         const validCryptoData = cryptoArray.filter(crypto => {
           return crypto && 
                  typeof crypto.ID === 'string' && 
-                 typeof crypto.PRICE === 'string' && 
-                 !isNaN(parseFloat(crypto.PRICE));
+                 typeof crypto.PRICE === 'number' && 
+                 !isNaN(crypto.PRICE) &&
+                 crypto.MOVING_24_HOUR_VOLUME !== undefined;
         });
 
         if (validCryptoData.length === 0) {
@@ -152,10 +156,16 @@ function App() {
         // Transform data to expected format
         const transformedData = validCryptoData.map(crypto => ({
           BASE: crypto.ID.replace('-USD', ''),
-          PRICE: crypto.PRICE,
+          PRICE: crypto.PRICE.toString(),
           LAST_UPDATE: crypto.LAST_UPDATE,
           MOVING_7_DAY: crypto.MOVING_7_DAY,
-          MOVING_24_HOUR: crypto.MOVING_24_HOUR
+          MOVING_24_HOUR: crypto.MOVING_24_HOUR,
+          MOVING_24_HOUR_VOLUME: crypto.MOVING_24_HOUR_VOLUME,
+          MOVING_24_HOUR_HIGH: crypto.MOVING_24_HOUR_HIGH,
+          MOVING_24_HOUR_LOW: crypto.MOVING_24_HOUR_LOW,
+          MOVING_24_HOUR_OPEN: crypto.MOVING_24_HOUR_OPEN,
+          MOVING_24_HOUR_CHANGE: crypto.MOVING_24_HOUR_CHANGE,
+          MOVING_24_HOUR_CHANGE_PERCENTAGE: crypto.MOVING_24_HOUR_CHANGE_PERCENTAGE
         }));
 
         // Update cache with fresh data
@@ -189,9 +199,18 @@ function App() {
             const symbol = crypto.BASE;
             const currentPrice = parseFloat(crypto.PRICE);
             
-            // Update 5-minute price history
+            // Update 5-minute price history with additional data
             const history = prev[symbol] || [];
-            const newHistoryForSymbol = [...history, { price: currentPrice, timestamp: now }];
+            const newHistoryForSymbol = [...history, { 
+              price: currentPrice, 
+              timestamp: now,
+              volume24h: crypto.MOVING_24_HOUR_VOLUME,
+              high24h: crypto.MOVING_24_HOUR_HIGH,
+              low24h: crypto.MOVING_24_HOUR_LOW,
+              open24h: crypto.MOVING_24_HOUR_OPEN,
+              change24h: crypto.MOVING_24_HOUR_CHANGE,
+              changePercent24h: crypto.MOVING_24_HOUR_CHANGE_PERCENTAGE
+            }];
             
             // Keep only last 5 minutes of data (fix: use >= instead of >)
             const fiveMinutesAgo = now - 300000; // 5 minutes
@@ -201,7 +220,13 @@ function App() {
               currentPrice,
               historyLength: filteredHistory.length,
               oldestPrice: filteredHistory.length > 0 ? filteredHistory[0].price : 'none',
-              newestPrice: filteredHistory.length > 0 ? filteredHistory[filteredHistory.length - 1].price : 'none'
+              newestPrice: filteredHistory.length > 0 ? filteredHistory[filteredHistory.length - 1].price : 'none',
+              volume24h: crypto.MOVING_24_HOUR_VOLUME,
+              high24h: crypto.MOVING_24_HOUR_HIGH,
+              low24h: crypto.MOVING_24_HOUR_LOW,
+              open24h: crypto.MOVING_24_HOUR_OPEN,
+              change24h: crypto.MOVING_24_HOUR_CHANGE,
+              changePercent24h: crypto.MOVING_24_HOUR_CHANGE_PERCENTAGE
             });
             
             newHistory[symbol] = filteredHistory;
@@ -248,8 +273,16 @@ function App() {
     
     // Set up polling with rate limiting
     const interval = setInterval(() => {
-      fetchData();
-    }, 1000); // Poll every 1 second
+      const now = Date.now();
+      const timeSinceLastCall = lastApiCall ? now - lastApiCall : Infinity;
+      
+      // Only fetch if enough time has passed since last successful fetch
+      if (timeSinceLastCall >= API_CONFIG.MIN_INTERVAL) {
+        fetchData();
+      } else {
+        console.log(`Skipping fetch - only ${timeSinceLastCall}ms since last call (min: ${API_CONFIG.MIN_INTERVAL}ms)`);
+      }
+    }, 5000); // Check every 5 seconds, but only fetch if rate limit allows
     
     return () => clearInterval(interval);
   }, [lastApiCall, retryCount]);
