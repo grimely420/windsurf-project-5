@@ -1,7 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 
 const TechnicalIndicators = ({ priceHistory, currentPrice }) => {
+  // Add loading state
+  const [isCalculating, setIsCalculating] = useState(false);
   // Validate props
   const safeCurrentPrice = useMemo(() => {
     if (typeof currentPrice === 'number' && !isNaN(currentPrice)) {
