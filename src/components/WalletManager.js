@@ -1,13 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 
 const WalletManager = ({ isOpen, onClose, onWalletConnect }) => {
+  // Enhanced state management
   const [wallets, setWallets] = useState([]);
   const [selectedWallet, setSelectedWallet] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState('');
+  const [connectionStep, setConnectionStep] = useState('');
+  const [walletInfo, setWalletInfo] = useState(null);
+  const [supportedNetworks, setSupportedNetworks] = useState([]);
+  const [currentNetwork, setCurrentNetwork] = useState(null);
 
-  // Wallet providers configuration
+  // Enhanced wallet providers configuration
   const walletProviders = [
     {
       id: 'metamask',
@@ -15,23 +20,35 @@ const WalletManager = ({ isOpen, onClose, onWalletConnect }) => {
       icon: '🦊',
       description: 'Most popular browser wallet',
       type: 'browser',
-      supportedChains: ['ethereum', 'bsc', 'polygon']
+      supportedChains: ['ethereum', 'bsc', 'polygon'],
+      downloadUrl: 'https://metamask.io/download/',
+      docsUrl: 'https://docs.metamask.io/',
+      features: ['swap', 'bridge', 'staking'],
+      rating: 4.5
     },
     {
-      id: 'trustwallet',
+      id: 'trust',
       name: 'Trust Wallet',
-      icon: '📱',
-      description: 'Mobile wallet with browser extension',
+      icon: '🛡️',
+      description: 'Mobile-first crypto wallet',
       type: 'mobile',
-      supportedChains: ['ethereum', 'bsc', 'polygon']
+      supportedChains: ['ethereum', 'bsc', 'polygon'],
+      downloadUrl: 'https://trustwallet.com/download/',
+      docsUrl: 'https://developer.trustwallet.com/',
+      features: ['dapp-browser', 'staking', 'nft'],
+      rating: 4.3
     },
     {
       id: 'coinbase',
       name: 'Coinbase Wallet',
       icon: '🔵',
-      description: 'Coinbase ecosystem wallet',
-      type: 'exchange',
-      supportedChains: ['ethereum', 'bsc', 'polygon']
+      description: 'Simple and secure',
+      type: 'hybrid',
+      supportedChains: ['ethereum', 'bsc', 'polygon', 'solana'],
+      downloadUrl: 'https://www.coinbase.com/wallet',
+      docsUrl: 'https://docs.cloud.coinbase.com/',
+      features: ['buy-crypto', 'swap', 'staking'],
+      rating: 4.4
     },
     {
       id: 'phantom',
@@ -39,15 +56,23 @@ const WalletManager = ({ isOpen, onClose, onWalletConnect }) => {
       icon: '👻',
       description: 'Solana ecosystem wallet',
       type: 'browser',
-      supportedChains: ['solana']
+      supportedChains: ['solana'],
+      downloadUrl: 'https://phantom.app/',
+      docsUrl: 'https://docs.phantom.app/',
+      features: ['solana-dapps', 'nft-gallery', 'staking'],
+      rating: 4.2
     },
     {
       id: 'ledger',
       name: 'Ledger',
-      icon: '🔒',
-      description: 'Hardware wallet (most secure)',
+      icon: '🔐',
+      description: 'Hardware wallet - maximum security',
       type: 'hardware',
-      supportedChains: ['ethereum', 'bsc', 'polygon', 'solana']
+      supportedChains: ['ethereum', 'bsc', 'polygon', 'solana'],
+      downloadUrl: 'https://www.ledger.com/',
+      docsUrl: 'https://docs.ledger.com/',
+      features: ['hardware-security', 'multi-chain', 'backup'],
+      rating: 4.7
     }
   ];
 
@@ -85,7 +110,42 @@ const WalletManager = ({ isOpen, onClose, onWalletConnect }) => {
         default:
           throw new Error('Unsupported wallet provider');
       }
+      // Add after line ~100:
+      const connectWallet = async (walletProvider) => {
+        setIsConnecting(true);
+        setConnectionError('');
+        setConnectionStep('Connecting...');
 
+        try {
+          // MetaMask connection
+          if (walletProvider.id === 'metamask') {
+            if (typeof window.ethereum !== 'undefined') {
+              await window.ethereum.request({ method: 'eth_requestAccounts' });
+              const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+              if (accounts.length > 0) {
+                const walletInfo = {
+                  address: accounts[0],
+                  provider: walletProvider.name,
+                  connected: true,
+                  balance: 0 // Will be fetched separately
+                };
+                setWalletInfo(walletInfo);
+                onWalletConnect(walletInfo);
+              }
+            } else {
+              throw new Error('MetaMask not installed');
+            }
+          }
+
+          // Similar logic for other wallets...
+
+        } catch (error) {
+          setConnectionError(error.message);
+        } finally {
+          setIsConnecting(false);
+          setConnectionStep('');
+        }
+      };
       // Save wallet connection
       const newWallet = {
         ...walletData,
@@ -208,7 +268,7 @@ const WalletManager = ({ isOpen, onClose, onWalletConnect }) => {
     const updatedWallets = wallets.filter(w => w.address !== walletAddress);
     setWallets(updatedWallets);
     localStorage.setItem('connectedWallets', JSON.stringify(updatedWallets));
-    
+
     if (selectedWallet?.address === walletAddress) {
       setSelectedWallet(null);
     }

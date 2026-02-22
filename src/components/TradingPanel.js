@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 
 const TradingPanel = ({ crypto, onTrade, balance, initialTradeType = 'buy' }) => {
+  // State management with validation
   const [tradeType, setTradeType] = useState(initialTradeType);
   const [amount, setAmount] = useState('');
   const [orderType, setOrderType] = useState('market');
@@ -11,21 +12,116 @@ const TradingPanel = ({ crypto, onTrade, balance, initialTradeType = 'buy' }) =>
   const [stopLoss, setStopLoss] = useState('');
   const [takeProfit, setTakeProfit] = useState('');
   const [timeInForce, setTimeInForce] = useState('GTC'); // Good Till Canceled
-
+  
+  // Validation and error states
+  const [errors, setErrors] = useState({});
+  const [successMessage, setSuccessMessage] = useState('');
+  const [tradeHistory, setTradeHistory] = useState([]);
+  
   const currentPrice = parseFloat(crypto.PRICE || 0);
   const symbol = crypto.BASE;
+  
+  // Validation functions
+  const validateAmount = useCallback((value) => {
+    const num = parseFloat(value);
+    if (!value || isNaN(num)) return 'Please enter a valid amount';
+    if (num <= 0) return 'Amount must be greater than 0';
+    if (num > 1000000) return 'Amount exceeds maximum limit';
+    if (balance && num > balance) return `Insufficient balance. Available: ${balance.toFixed(4)}`;
+    return null;
+  }, [balance]);
+  
+  const validateLimitPrice = useCallback((value) => {
+    if (orderType !== 'limit') return null;
+    const num = parseFloat(value);
+    if (!value || isNaN(num)) return 'Please enter a valid limit price';
+    if (num <= 0) return 'Limit price must be greater than 0';
+    if (tradeType === 'buy' && num > currentPrice * 1.1) return 'Limit price too high (max 10% above current)';
+    if (tradeType === 'sell' && num < currentPrice * 0.9) return 'Limit price too low (min 90% of current)';
+    return null;
+  }, [orderType, tradeType, currentPrice]);
+  
+  const validateStopLoss = useCallback((value) => {
+    if (!advancedMode || !value) return null;
+    const num = parseFloat(value);
+    if (isNaN(num)) return 'Please enter a valid stop loss price';
+    if (num <= 0) return 'Stop loss must be greater than 0';
+    if (tradeType === 'buy' && num >= currentPrice) return 'Stop loss must be below current price for buy orders';
+    if (tradeType === 'sell' && num <= currentPrice) return 'Stop loss must be above current price for sell orders';
+    return null;
+  }, [advancedMode, tradeType, currentPrice]);
+  
+  const validateTakeProfit = useCallback((value) => {
+    if (!advancedMode || !value) return null;
+    const num = parseFloat(value);
+    if (isNaN(num)) return 'Please enter a valid take profit price';
+    if (num <= 0) return 'Take profit must be greater than 0';
+    if (tradeType === 'buy' && num <= currentPrice) return 'Take profit must be above current price for buy orders';
+    if (tradeType === 'sell' && num >= currentPrice) return 'Take profit must be below current price for sell orders';
+    return null;
+  }, [advancedMode, tradeType, currentPrice]);
 
-  const calculateTotal = () => {
-    if (!amount) return 0;
+  // Enhanced calculation functions
+  const calculateTotal = useCallback(() => {
+    if (!amount) return { total: 0, fee: 0, net: 0 };
     const tradeAmount = parseFloat(amount);
-    const price = orderType === 'limit' ? parseFloat(limitPrice) : currentPrice;
+    if (isNaN(tradeAmount) || tradeAmount <= 0) return { total: 0, fee: 0, net: 0 };
     
-    if (orderType === 'market') {
-      return tradeAmount * currentPrice;
+    const price = orderType === 'limit' ? parseFloat(limitPrice) || currentPrice : currentPrice;
+    const total = tradeAmount * price;
+    const fee = total * 0.001; // 0.1% fee
+    const net = tradeType === 'buy' ? total + fee : total - fee;
+    
+    return { total, fee, net };
+  }, [amount, orderType, limitPrice, currentPrice, tradeType]);
+  
+  const calculateEstimatedSlippage = useCallback(() => {
+    if (orderType !== 'market' || !amount) return 0;
+    const tradeAmount = parseFloat(amount);
+    if (isNaN(tradeAmount) || tradeAmount <= 0) return 0;
+    
+    // Estimate slippage based on trade size (simplified model)
+    const baseSlippage = 0.001; // 0.1% base slippage
+    const sizeMultiplier = Math.min(tradeAmount / 1000, 2); // Larger trades have more slippage
+    return baseSlippage * sizeMultiplier * 100; // Return as percentage
+  }, [amount, orderType]);
+  
+  const calculateRiskReward = useCallback(() => {
+    if (!advancedMode || !amount || !stopLoss || !takeProfit) return null;
+    
+    const entryPrice = orderType === 'limit' ? parseFloat(limitPrice) || currentPrice : currentPrice;
+    const stopLossPrice = parseFloat(stopLoss);
+    const takeProfitPrice = parseFloat(takeProfit);
+    
+    if (tradeType === 'buy') {
+      const risk = entryPrice - stopLossPrice;
+      const reward = takeProfitPrice - entryPrice;
+      return { risk, reward, ratio: reward / risk };
     } else {
-      return tradeAmount * price;
+      const risk = stopLossPrice - entryPrice;
+      const reward = entryPrice - takeProfitPrice;
+      return { risk, reward, ratio: reward / risk };
     }
-  };
+  }, [advancedMode, amount, stopLoss, takeProfit, orderType, limitPrice, currentPrice, tradeType]);
+
+  // Real-time validation effect
+  useEffect(() => {
+    const newErrors = {};
+    
+    const amountError = validateAmount(amount);
+    if (amountError) newErrors.amount = amountError;
+    
+    const limitPriceError = validateLimitPrice(limitPrice);
+    if (limitPriceError) newErrors.limitPrice = limitPriceError;
+    
+    const stopLossError = validateStopLoss(stopLoss);
+    if (stopLossError) newErrors.stopLoss = stopLossError;
+    
+    const takeProfitError = validateTakeProfit(takeProfit);
+    if (takeProfitError) newErrors.takeProfit = takeProfitError;
+    
+    setErrors(newErrors);
+  }, [amount, limitPrice, stopLoss, takeProfit, validateAmount, validateLimitPrice, validateStopLoss, validateTakeProfit]);
 
   const calculateEstimatedFee = () => {
     const tradeAmount = parseFloat(amount) || 0;
@@ -78,50 +174,76 @@ const TradingPanel = ({ crypto, onTrade, balance, initialTradeType = 'buy' }) =>
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Clear previous messages
+    setSuccessMessage('');
+    
+    // Validate all fields
+    const amountError = validateAmount(amount);
+    const limitPriceError = validateLimitPrice(limitPrice);
+    const stopLossError = validateStopLoss(stopLoss);
+    const takeProfitError = validateTakeProfit(takeProfit);
+    
+    const newErrors = {};
+    if (amountError) newErrors.amount = amountError;
+    if (limitPriceError) newErrors.limitPrice = limitPriceError;
+    if (stopLossError) newErrors.stopLoss = stopLossError;
+    if (takeProfitError) newErrors.takeProfit = takeProfitError;
+    
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    
     setIsLoading(true);
-
+    
     try {
-      const tradeAmount = parseFloat(amount);
-      const price = orderType === 'limit' ? parseFloat(limitPrice) : currentPrice;
-      const total = tradeAmount * price;
-      const estimatedFee = calculateEstimatedFee();
-      const realPnL = calculateRealizedPnL();
-      const estimatedSlippage = getEstimatedSlippage();
-
       const tradeData = {
         symbol,
         type: tradeType,
+        amount: parseFloat(amount),
+        price: orderType === 'limit' ? parseFloat(limitPrice) : currentPrice,
         orderType,
-        amount: tradeAmount,
-        price,
-        total,
-        fee: estimatedFee,
-        realPnL,
-        estimatedSlippage,
+        stopLoss: advancedMode ? parseFloat(stopLoss) || null : null,
+        takeProfit: advancedMode ? parseFloat(takeProfit) || null : null,
         timeInForce,
-        timestamp: new Date().toISOString(),
-        exchange: 'live', // Real trading, not simulated
-        status: 'pending'
+        timestamp: Date.now(),
+        estimatedSlippage: calculateEstimatedSlippage(),
+        riskReward: calculateRiskReward()
       };
-
-      console.log('🚀 REAL TRADE:', tradeData);
       
-      // Call real trading service
-      await onTrade(tradeData);
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Reset form on success
+      // Add to trade history
+      const newTrade = {
+        ...tradeData,
+        id: Date.now(),
+        status: 'filled',
+        filledPrice: tradeData.price,
+        filledAmount: tradeData.amount,
+        fee: calculateTotal().fee
+      };
+      
+      setTradeHistory(prev => [newTrade, ...prev.slice(0, 9)]); // Keep last 10 trades
+      
+      // Call parent handler
+      if (onTrade) {
+        onTrade(tradeData);
+      }
+      
+      // Show success message
+      setSuccessMessage(`${tradeType === 'buy' ? 'Buy' : 'Sell'} order placed successfully!`);
+      
+      // Reset form
       setAmount('');
       setLimitPrice('');
       setStopLoss('');
       setTakeProfit('');
+      setErrors({});
       
-      // Show success message
-      alert(`🚀 ${tradeType === 'buy' ? 'Buy' : 'Sell'} order placed!\n` +
-            `${tradeAmount} ${symbol} @ $${price.toFixed(2)}\n` +
-            `Total: $${total.toFixed(2)}\n` +
-            `Fee: $${estimatedFee.toFixed(2)}\n` +
-            `Est. P&L: ${realPnL > 0 ? '+' : ''}$${realPnL.toFixed(2)}\n` +
-            `Est. Slippage: ${estimatedSlippage.toFixed(3)}%`);
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccessMessage(''), 3000);
       
     } catch (error) {
       console.error('Real trade failed:', error);

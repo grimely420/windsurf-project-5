@@ -2,6 +2,14 @@ import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
 
 const TechnicalIndicators = ({ priceHistory, currentPrice }) => {
+  // Validate props
+  const safeCurrentPrice = useMemo(() => {
+    if (typeof currentPrice === 'number' && !isNaN(currentPrice)) {
+      return currentPrice;
+    }
+    console.warn('TechnicalIndicators: Invalid currentPrice', { currentPrice });
+    return 0;
+  }, [currentPrice]);
   // Calculate RSI (Relative Strength Index)
   const calculateRSI = (prices, period = 14) => {
     if (prices.length < period + 1) return 50;
@@ -69,20 +77,20 @@ const TechnicalIndicators = ({ priceHistory, currentPrice }) => {
     };
 
     const calculateEMA = (data, period) => {
-      if (data.length < period) return 0;
+      if (data.length < period) return [];
       const multiplier = 2 / (period + 1);
       let ema = data[0];
       
-      for (let i = 1; i < data.length; i++) {
+      for (let i = 0; i < data.length; i++) {
         ema = (data[i] * multiplier) + (ema * (1 - multiplier));
       }
       
-      return ema;
+      return [ema];
     };
 
     return {
       sma20: calculateSMA(prices, 20),
-      ema20: calculateEMA(prices, 20),
+      ema20: calculateEMA(prices, 20)[0],
       sma50: calculateSMA(prices, 50),
       ema50: calculateEMA(prices, 50)
     };
@@ -108,15 +116,34 @@ const TechnicalIndicators = ({ priceHistory, currentPrice }) => {
     };
   };
 
-  // Get price history from the data
+  // Get price history from the data with enhanced validation
   const prices = useMemo(() => {
-    if (!priceHistory || !Array.isArray(priceHistory) || priceHistory.length === 0) return [];
-    return priceHistory.map(item => item.price).sort((a, b) => a - b);
+    if (!priceHistory || !Array.isArray(priceHistory) || priceHistory.length === 0) {
+      console.warn('TechnicalIndicators: Invalid priceHistory data', { priceHistory });
+      return [];
+    }
+    
+    try {
+      const validPrices = priceHistory
+        .filter(item => item && typeof item.price === 'number' && !isNaN(item.price))
+        .map(item => item.price);
+      
+      if (validPrices.length === 0) {
+        console.warn('TechnicalIndicators: No valid prices found in priceHistory');
+        return [];
+      }
+      
+      return validPrices.sort((a, b) => a - b);
+    } catch (error) {
+      console.error('TechnicalIndicators: Error processing priceHistory', error);
+      return [];
+    }
   }, [priceHistory]);
 
-  // Calculate all indicators
+  // Calculate all indicators with error handling
   const indicators = useMemo(() => {
     if (prices.length === 0) {
+      console.warn('TechnicalIndicators: No prices available for calculations');
       return {
         rsi: 50,
         macd: { macd: 0, signal: 0, histogram: 0 },
@@ -125,12 +152,22 @@ const TechnicalIndicators = ({ priceHistory, currentPrice }) => {
       };
     }
 
-    return {
-      rsi: calculateRSI(prices),
-      macd: calculateMACD(prices),
-      movingAverages: calculateMovingAverages(prices),
-      bollingerBands: calculateBollingerBands(prices)
-    };
+    try {
+      return {
+        rsi: calculateRSI(prices),
+        macd: calculateMACD(prices),
+        movingAverages: calculateMovingAverages(prices),
+        bollingerBands: calculateBollingerBands(prices)
+      };
+    } catch (error) {
+      console.error('TechnicalIndicators: Error calculating indicators', error);
+      return {
+        rsi: 50,
+        macd: { macd: 0, signal: 0, histogram: 0 },
+        movingAverages: { sma20: 0, ema20: 0, sma50: 0, ema50: 0 },
+        bollingerBands: { upper: 0, middle: 0, lower: 0 }
+      };
+    }
   }, [prices]);
 
   // Get signal based on indicators
@@ -158,9 +195,9 @@ const TechnicalIndicators = ({ priceHistory, currentPrice }) => {
     }
 
     // Bollinger Bands signals
-    if (currentPrice <= bollingerBands.lower) {
+    if (safeCurrentPrice <= bollingerBands.lower) {
       signals.push({ type: 'buy', source: 'BB', strength: 'medium', text: 'Below lower band' });
-    } else if (currentPrice >= bollingerBands.upper) {
+    } else if (safeCurrentPrice >= bollingerBands.upper) {
       signals.push({ type: 'sell', source: 'BB', strength: 'medium', text: 'Above upper band' });
     }
 
@@ -190,7 +227,7 @@ const TechnicalIndicators = ({ priceHistory, currentPrice }) => {
       <div className="indicators-header">
         <h4>Technical Analysis</h4>
         <div className="current-price-display">
-          ${currentPrice ? currentPrice.toFixed(2) : '0.00'}
+          ${safeCurrentPrice.toFixed(2)}
         </div>
       </div>
 

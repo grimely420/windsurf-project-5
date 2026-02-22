@@ -1,0 +1,247 @@
+.error-boundary {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.error-content {
+  background: white;
+  padding: 40px;
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  text-align: center;
+  max-width: 500px;
+  width: 100%;
+  animation: slideInUp 0.3s ease-out;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.error-icon {
+  margin-bottom: 20px;
+  color: #ef4444;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.error-content h2 {
+  color: #1f2937;
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  line-height: 1.3;
+}
+
+.error-message {
+  color: #6b7280;
+  font-size: 16px;
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+.error-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.retry-button,
+.reload-button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.retry-button {
+  background: #3b82f6;
+  color: white;
+}
+
+.retry-button:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.reload-button {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.reload-button:hover {
+  background: #e5e7eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.error-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.error-info small {
+  color: #9ca3af;
+  font-size: 12px;
+  font-family: 'Monaco', 'Menlo', monospace;
+}
+
+.error-details {
+  margin-top: 20px;
+  text-align: left;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 20px;
+}
+
+.error-details summary {
+  cursor: pointer;
+  padding: 8px 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 12px;
+  transition: background 0.2s ease;
+}
+
+.error-details summary:hover {
+  background: #f3f4f6;
+}
+
+.error-debug {
+  background: #1f2937;
+  color: #f9fafb;
+  padding: 16px;
+  border-radius: 8px;
+  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-x: auto;
+  margin-top: 12px;
+}
+
+.error-debug div {
+  margin-bottom: 8px;
+}
+
+.error-debug strong {
+  color: #60a5fa;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.error-debug pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #e5e7eb;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .error-boundary {
+    padding: 12px;
+  }
+  
+  .error-content {
+    padding: 24px;
+  }
+  
+  .error-content h2 {
+    font-size: 20px;
+  }
+  
+  .error-message {
+    font-size: 14px;
+  }
+  
+  .error-actions {
+    flex-direction: column;
+  }
+  
+  .retry-button,
+  .reload-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .error-boundary {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  }
+  
+  .error-content {
+    background: #1f2937;
+    color: #f9fafb;
+  }
+  
+  .error-content h2 {
+    color: #f9fafb;
+  }
+  
+  .error-message {
+    color: #d1d5db;
+  }
+  
+  .reload-button {
+    background: #374151;
+    color: #f9fafb;
+    border-color: #4b5563;
+  }
+  
+  .reload-button:hover {
+    background: #4b5563;
+  }
+  
+  .error-info {
+    border-top-color: #374151;
+  }
+  
+  .error-details summary {
+    background: #374151;
+    color: #f9fafb;
+    border-color: #4b5563;
+  }
+  
+  .error-details summary:hover {
+    background: #4b5563;
+  }
+}
