@@ -27,7 +27,7 @@ function App() {
 
   // Enhanced API configuration
   const API_CONFIG = {
-    BASE_URL: process.env.REACT_APP_API_BASE_URL || 'https://data-api.coindesk.com/spot/v1/latest/tick',
+    BASE_URL: process.env.REACT_APP_API_BASE_URL || 'https://data-api.coindesk.com/spot/v1/latest/tick?market=coinbase&instruments=BTC-USD,ETH-USD,BNB-USD&apply_mapping=true&groups=ID,VALUE,LAST_UPDATE,MOVING_7_DAY,MOVING_24_HOUR&api_key=b25261954a90a07e2ba14216f21bb9d9cc354182be6298904478f0d283095551',
     API_KEY: process.env.REACT_APP_COINDESK_API_KEY,
     MIN_INTERVAL: 1000,
     MAX_RETRIES: 3,
@@ -98,29 +98,38 @@ function App() {
           throw new Error('Invalid API response format');
         }
 
-        // Validate and filter crypto data
+        // Validate and filter crypto data for new API format
         const validCryptoData = data.data.filter(crypto => {
           return crypto && 
-                 typeof crypto.BASE === 'string' && 
-                 typeof crypto.PRICE === 'string' && 
-                 !isNaN(parseFloat(crypto.PRICE));
+                 typeof crypto.ID === 'string' && 
+                 typeof crypto.VALUE === 'string' && 
+                 !isNaN(parseFloat(crypto.VALUE));
         });
 
         if (validCryptoData.length === 0) {
           throw new Error('No valid crypto data received');
         }
 
+        // Transform data to expected format
+        const transformedData = validCryptoData.map(crypto => ({
+          BASE: crypto.ID.replace('-USD', ''),
+          PRICE: crypto.VALUE,
+          LAST_UPDATE: crypto.LAST_UPDATE,
+          MOVING_7_DAY: crypto.MOVING_7_DAY,
+          MOVING_24_HOUR: crypto.MOVING_24_HOUR
+        }));
+
         // Update cache with fresh data
         const newCache = new Map(apiCache);
         newCache.set(cacheKey, {
-          data: validCryptoData,
+          data: transformedData,
           timestamp: now
         });
         setApiCache(newCache);
         setLastSuccessfulFetch(now);
 
         // Update state with validated data
-        setCryptoData(validCryptoData);
+        setCryptoData(transformedData);
         setLastApiCall(now);
         setLastUpdateTime(new Date(now));
         setStatus('success');
@@ -129,7 +138,7 @@ function App() {
         setError(null);
         
         console.log('Successfully fetched and cached crypto data:', {
-          count: validCryptoData.length,
+          count: transformedData.length,
           timestamp: new Date(now).toISOString()
         });
 
@@ -137,7 +146,7 @@ function App() {
         setFiveMinuteHistory(prev => {
           const newHistory = { ...prev };
           
-          validCryptoData.forEach(crypto => {
+          transformedData.forEach(crypto => {
             const symbol = crypto.BASE;
             const currentPrice = parseFloat(crypto.PRICE);
             
@@ -184,7 +193,7 @@ function App() {
         setStatusText('Error');
         
         // Retry logic with exponential backoff
-        if (retryCount < MAX_RETRIES) {
+        if (retryCount < API_CONFIG.MAX_RETRIES) {
           setRetryCount(prev => prev + 1);
           const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 10000);
           setStatusText(`Retrying in ${backoffDelay/1000}s...`);
