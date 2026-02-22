@@ -27,8 +27,8 @@ function App() {
 
   // Enhanced API configuration
   const API_CONFIG = {
-    BASE_URL: process.env.REACT_APP_API_BASE_URL || 'https://data-api.coindesk.com/spot/v1/latest/tick?market=coinbase&instruments=BTC-USD,ETH-USD,BNB-USD&apply_mapping=true&groups=ID,VALUE,LAST_UPDATE,MOVING_7_DAY,MOVING_24_HOUR&api_key=b25261954a90a07e2ba14216f21bb9d9cc354182be6298904478f0d283095551',
-    API_KEY: process.env.REACT_APP_COINDESK_API_KEY,
+    BASE_URL: process.env.REACT_APP_API_BASE_URL || 'https://data-api.coindesk.com/spot/v1/latest/tick?market=coinbase&instruments=BTC-USD,ETH-USD,BNB-USD&apply_mapping=true&groups=ID,VALUE,LAST_UPDATE,MOVING_7_DAY,MOVING_24_HOUR',
+    API_KEY: process.env.REACT_APP_COINDESK_API_KEY || 'b25261954a90a07e2ba14216f21bb9d9cc354182be6298904478f0d283095551',
     MIN_INTERVAL: 1000,
     MAX_RETRIES: 3,
     RETRY_DELAY: 2000,
@@ -104,7 +104,18 @@ function App() {
         // Handle different possible response structures
         let cryptoArray = [];
         
-        if (Array.isArray(data)) {
+        if (data.Data && typeof data.Data === 'object') {
+          // CoinDesk API format: Data object with crypto pairs as keys
+          cryptoArray = Object.entries(data.Data).map(([instrument, cryptoData]) => ({
+            ID: instrument,
+            INSTRUMENT: cryptoData.INSTRUMENT,
+            PRICE: cryptoData.PRICE,
+            PRICE_FLAG: cryptoData.PRICE_FLAG,
+            LAST_UPDATE: cryptoData.PRICE_LAST_UPDATE_TS,
+            MOVING_7_DAY: cryptoData.MOVING_7_DAY_CHANGE_PERCENTAGE,
+            MOVING_24_HOUR: cryptoData.MOVING_24_HOUR_CHANGE_PERCENTAGE
+          }));
+        } else if (Array.isArray(data)) {
           // Direct array response
           cryptoArray = data;
         } else if (data.data && Array.isArray(data.data)) {
@@ -114,7 +125,7 @@ function App() {
           // Double nested data array
           cryptoArray = data.data.data;
         } else {
-          // Log the actual structure for debugging
+          // Log actual structure for debugging
           console.error('Unexpected API response structure:', {
             hasData: !!data,
             hasDataData: !!data?.data,
@@ -130,8 +141,8 @@ function App() {
         const validCryptoData = cryptoArray.filter(crypto => {
           return crypto && 
                  typeof crypto.ID === 'string' && 
-                 typeof crypto.VALUE === 'string' && 
-                 !isNaN(parseFloat(crypto.VALUE));
+                 typeof crypto.PRICE === 'string' && 
+                 !isNaN(parseFloat(crypto.PRICE));
         });
 
         if (validCryptoData.length === 0) {
@@ -141,7 +152,7 @@ function App() {
         // Transform data to expected format
         const transformedData = validCryptoData.map(crypto => ({
           BASE: crypto.ID.replace('-USD', ''),
-          PRICE: crypto.VALUE,
+          PRICE: crypto.PRICE,
           LAST_UPDATE: crypto.LAST_UPDATE,
           MOVING_7_DAY: crypto.MOVING_7_DAY,
           MOVING_24_HOUR: crypto.MOVING_24_HOUR
