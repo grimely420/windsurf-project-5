@@ -94,12 +94,40 @@ function App() {
 
         const data = await response.json();
         
-        if (!data || !data.data) {
-          throw new Error('Invalid API response format');
+        // Debug: Log the actual API response structure
+        console.log('CoinDesk API Response:', data);
+        
+        if (!data) {
+          throw new Error('No data received from API');
         }
-
+        
+        // Handle different possible response structures
+        let cryptoArray = [];
+        
+        if (Array.isArray(data)) {
+          // Direct array response
+          cryptoArray = data;
+        } else if (data.data && Array.isArray(data.data)) {
+          // Nested data array
+          cryptoArray = data.data;
+        } else if (data.data && data.data.data && Array.isArray(data.data.data)) {
+          // Double nested data array
+          cryptoArray = data.data.data;
+        } else {
+          // Log the actual structure for debugging
+          console.error('Unexpected API response structure:', {
+            hasData: !!data,
+            hasDataData: !!data?.data,
+            hasDataDataData: !!data?.data?.data,
+            dataType: typeof data,
+            dataKeys: data ? Object.keys(data) : 'null',
+            dataDataKeys: data?.data ? Object.keys(data.data) : 'null'
+          });
+          throw new Error(`Unexpected API response structure. Expected array but got: ${JSON.stringify(data)}`);
+        }
+        
         // Validate and filter crypto data for new API format
-        const validCryptoData = data.data.filter(crypto => {
+        const validCryptoData = cryptoArray.filter(crypto => {
           return crypto && 
                  typeof crypto.ID === 'string' && 
                  typeof crypto.VALUE === 'string' && 
